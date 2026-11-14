@@ -1003,8 +1003,7 @@ mountHeadings();
     toggle.setAttribute('aria-checked', String(value === 'dark'));
     document.querySelector('meta[name="theme-color"]').content = value === 'dark' ? '#0a0a0b' : '#f5f5f0';
   }
-  try { theme(localStorage.getItem('kinetiq-home-theme') === 'dark' ? 'dark' : 'light'); } catch (_) {}
-  let themeBusy = false;
+try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : 'dark'); } catch (_) {}  let themeBusy = false;
   let activeThemeTransition = null;
   const storeTheme = value => {
     theme(value);
