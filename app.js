@@ -1001,7 +1001,7 @@ mountHeadings();
   function theme(value) {
     root.dataset.theme = value;
     toggle.setAttribute('aria-checked', String(value === 'dark'));
-    document.querySelector('meta[name="theme-color"]').content = value === 'dark' ? '#0a0a0b' : '#f5f5f0';
+    document.querySelector('meta[name="theme-color"]').content = getComputedStyle(root).getPropertyValue('--bg').trim();
   }
 try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : 'dark'); } catch (_) {}  let themeBusy = false;
   let activeThemeTransition = null;
@@ -1137,10 +1137,616 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
       if (!removed) requestAnimationFrame(() => doors.classList.add('is-open'));
     });
   }
+  // RubberSegment, adapted to the site's buildless DOM. Both edges use slot
+  // units so the cut and its duplicate labels stay aligned when fonts resize.
+  function mountRubberSegment(track, reduced, navigate) {
+    const buttons = [...track.querySelectorAll('[data-project]')];
+    const count = buttons.length;
+    const last = count - 1;
+    const thumb = document.createElement('span');
+    thumb.className = 'segment-thumb';
+    thumb.setAttribute('aria-hidden', 'true');
+    buttons.forEach(button => {
+      const copy = document.createElement('span');
+      copy.textContent = button.textContent;
+      thumb.append(copy);
+    });
+    track.append(thumb);
+
+    let selected = -1, animation, drag, ignoreClick = false;
+    const clip = (l, r) => `inset(0 ${100 * (count - r) / count}% 0 ${100 * l / count}% round 7px)`;
+    function select(index, motion = 'jump') {
+      if (selected === index && motion === 'jump') return;
+      const from = Math.max(0, selected);
+      const start = getComputedStyle(thumb).clipPath;
+      animation?.cancel();
+      selected = index;
+      buttons.forEach((button, i) => button.setAttribute('aria-current', String(i === index)));
+      const end = clip(index, index + 1);
+      thumb.style.clipPath = end;
+      if (reduced.matches || motion === 'jump') return;
+      const dir = Math.sign(index - from);
+      const squash = Math.min(.12, 3 * count / Math.max(1, thumb.clientWidth));
+      const frames = [{ clipPath:start }];
+      if (motion === 'stretch') {
+        frames.push({ clipPath:clip(Math.min(from,index), Math.max(from,index) + 1), offset:.32 });
+      }
+      frames.push({ clipPath:clip(index + Math.max(0,dir) * squash, index + 1 + Math.min(0,dir) * squash), offset:.76 }, { clipPath:end });
+      animation = thumb.animate(frames.map(frame => ({ ...frame, easing:'cubic-bezier(.23,1,.32,1)' })), {
+        duration:motion === 'stretch' ? 495 : 340
+      });
+    }
+    function choose(index, motion) {
+      select(index, motion);
+      navigate(index);
+    }
+    select(0);
+    buttons.forEach((button, index) => {
+      button.addEventListener('click', event => {
+        if (ignoreClick && event.detail) return;
+        if (index !== selected) choose(index, 'stretch');
+      });
+      button.addEventListener('keydown', event => {
+        const targets = { ArrowLeft:index-1, ArrowUp:index-1, ArrowRight:index+1, ArrowDown:index+1, Home:0, End:last };
+        if (!Object.hasOwn(targets, event.key)) return;
+        event.preventDefault();
+        const target = Math.max(0, Math.min(last, targets[event.key]));
+        choose(target, 'jump');
+        buttons[target].focus({ preventScroll:true });
+      });
+      button.addEventListener('pointerdown', event => {
+        if (!event.isPrimary || event.button !== 0) return;
+        ignoreClick = false;
+        if (index !== selected) return;
+        drag = { id:event.pointerId, start:event.clientX, width:thumb.clientWidth / count, samples:[], live:false };
+        button.setPointerCapture(event.pointerId);
+      });
+    });
+    track.addEventListener('pointermove', event => {
+      if (drag?.id !== event.pointerId) return;
+      const delta = event.clientX - drag.start;
+      if (!drag.live && Math.abs(delta) < 4) return;
+      drag.live = true;
+      track.dataset.dragging = '';
+      animation?.cancel();
+      const raw = selected + delta / drag.width;
+      const l = Math.max(0, Math.min(last, raw));
+      const over = raw - l;
+      const squeeze = reduced.matches ? 0 : .55 * over / (1 + .55 * Math.abs(over));
+      thumb.style.clipPath = clip(l + Math.max(0,squeeze), l + 1 + Math.min(0,squeeze));
+      drag.samples = [...drag.samples, [event.timeStamp,event.clientX]].filter(([t]) => event.timeStamp - t <= 100);
+    });
+    function finish(event) {
+      if (drag?.id !== event.pointerId) return;
+      const d = drag;
+      drag = null;
+      delete track.dataset.dragging;
+      if (!d.live) return;
+      ignoreClick = true;
+      if (event.type !== 'pointerup') { select(selected, 'land'); return; }
+      const sample = d.samples.find(([t]) => event.timeStamp - t <= 100);
+      const velocity = sample ? (event.clientX - sample[1]) / Math.max(8,event.timeStamp - sample[0]) : 0;
+      const glide = Math.abs(velocity) > .11 ? Math.max(-2,Math.min(2,velocity)) * 94 : 0;
+      const raw = selected + (event.clientX - d.start + glide) / d.width;
+      const target = Math.max(0, Math.min(last, Math.round(raw)));
+      choose(target, 'land');
+    }
+    for (const type of ['pointerup','pointercancel','lostpointercapture']) track.addEventListener(type, finish);
+    return index => { if (!drag) select(index); };
+  }
+  // PixelSwap's growing tile mask, driven by scroll position. The later
+  // card builds in from the right and recedes along the same path in reverse.
+  function mountWorkPixelSwap(viewport, scenes) {
+    if (!CSS.supports('clip-path', 'path("M0 0H1V1H0Z")')) return null;
+    viewport.classList.add('work-pixel-swap');
+    let tiles = [], lastPosition = -1;
+    return {
+      measure() {
+        const width = viewport.clientWidth;
+        const height = viewport.clientHeight;
+        const size = Math.max(34, Math.min(54, Math.round(width / 23)), Math.ceil(Math.sqrt(width * height / 300)));
+        const columns = Math.ceil(width / size);
+        const rows = Math.ceil(height / size);
+        const offsetX = (width - columns * size) / 2;
+        const offsetY = (height - rows * size) / 2;
+        tiles = [];
+        for (let row = 0; row < rows; row++) {
+          for (let column = 0; column < columns; column++) {
+            // A stagger breaks up the edge while preserving a consistent wave.
+            const stagger = ((row * 19 + column * 7) % 11) / 10;
+            const order = (columns - 1 - column) / Math.max(1, columns - 1);
+            tiles.push({
+              x:offsetX + (column + .5) * size,
+              y:offsetY + (row + .5) * size,
+              delay:.66 * order + .12 * stagger,
+              half:size / 2 + .75
+            });
+          }
+        }
+        lastPosition = -1;
+      },
+      paint(position) {
+        if (position === lastPosition) return;
+        lastPosition = position;
+        const base = Math.floor(position);
+        const amount = position - base;
+        const incoming = amount > 0 ? base + 1 : -1;
+        scenes.forEach((scene, i) => {
+          scene.classList.toggle('pixel-visible', i === base || i === incoming);
+          if (i !== incoming) scene.style.removeProperty('clip-path');
+        });
+        if (incoming === -1) return;
+
+        const path = [];
+        for (const { x, y, delay, half } of tiles) {
+          const grow = Math.max(0, Math.min(1, (amount - delay) / .22));
+          if (!grow) continue;
+          const radius = half * (1 - (1 - grow) ** 2);
+          const left = (x - radius).toFixed(1);
+          const right = (x + radius).toFixed(1);
+          const top = (y - radius).toFixed(1);
+          const bottom = (y + radius).toFixed(1);
+          path.push(`M${left} ${top}H${right}V${bottom}H${left}Z`);
+        }
+        scenes[incoming].style.clipPath = path.length ? `path("${path.join('')}")` : 'inset(50%)';
+      }
+    };
+  }
+
+  /* Page 3 shares the intro's RAF and 70ms exponential follow. Distances below
+     begin AFTER the original fold has completed; none rescales that fold. */
+  function mountWorkChapter(section, stage, destination, reduced, wake) {
+    const portfolio = document.getElementById('selected-work');
+    const anchor = document.createComment('Page 3 position inside the sticky stage');
+    portfolio.before(anchor);
+    const scenes = [...portfolio.querySelectorAll('.work-scene')];
+    const pixelSwap = mountWorkPixelSwap(portfolio.querySelector('.work-viewport'), scenes);
+    function syncWorkTheme(index) {
+      const theme = scenes[index].dataset.workTheme;
+      if (root.dataset.workTheme !== theme) root.dataset.workTheme = theme;
+    }
+    const lines = scenes.map(scene => [...scene.querySelectorAll('.work-line')]);
+    const sweep = document.querySelector('.work-sweep');
+    const header = document.querySelector('.nav');
+    let brandCrossing = .1, controlsCrossing = .9;
+    const indexLabel = document.getElementById('work-index');
+    const previous = document.getElementById('work-prev');
+    const next = document.getElementById('work-next');
+    const syncSegment = mountRubberSegment(portfolio.querySelector('.work-directory'), reduced, goToProject);
+    let requestedProject = null;
+    const video = document.getElementById('work-motion');
+    const shots = [...portfolio.querySelectorAll('[data-shot]')];
+    const filmSlot = video.parentElement;
+    let unit = innerHeight, foldDistance = 1, top = 0, width = innerWidth;
+    let active = -1, workVisible = false, pointerX = 0, pointerY = 0, mouseX = 0, mouseY = 0;
+    let videoReady = false, userPaused = false, playPending = false;
+    const clamp = value => Math.max(0, Math.min(1, value));
+    const smooth = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
+    // In viewport units: reading hold, sweep, first study, side slide, second
+    // study, side slide, third study. The final .15 leaves room to settle.
+    const timeline = { hold: .45, sweepEnd: 1.35, firstEnd: 2.3, secondStart: 2.95, secondEnd: 3.8, thirdStart: 4.45, end: 5.1 };
+
+    function syncLayout() {
+      if (reduced.matches) {
+        section.after(portfolio);
+        scenes.forEach(scene => { scene.inert = false; scene.removeAttribute('aria-hidden'); });
+        portfolio.inert = false;
+        portfolio.removeAttribute('aria-hidden');
+        pointerX = pointerY = mouseX = mouseY = 0;
+      } else anchor.after(portfolio);
+      if (reduced.matches) comparisonPreview?.cancel();
+      syncFilm();
+    }
+    function measure(distance, sectionTop) {
+      foldDistance = distance;
+      top = sectionTop;
+      width = document.documentElement.clientWidth;
+      const brandRect = header.querySelector('.brand').getBoundingClientRect();
+      const controlsRect = header.querySelector('.nav-right').getBoundingClientRect();
+      brandCrossing = (brandRect.left + brandRect.width / 2) / width;
+      controlsCrossing = (controlsRect.left + controlsRect.width / 2) / width;
+      const baseHeight = section.querySelector('.journey-baseline').offsetHeight;
+      unit = reduced.matches ? innerHeight : Math.max(1, (section.offsetHeight - baseHeight) / 5.25);
+      if (!reduced.matches) pixelSwap?.measure();
+    }
+    function loadFilm() {
+      if (!video.hasAttribute('src')) {
+        video.preload = 'metadata';
+        video.src = video.dataset.src;
+      }
+    }
+    function syncFilm() {
+      if (!workVisible || active !== 2 || document.hidden) {
+        video.pause();
+        return;
+      }
+      loadFilm();
+      if (!videoReady || reduced.matches || userPaused || !video.paused || playPending) return;
+      playPending = true;
+      video.play().catch(error => {
+        if (error.name !== 'AbortError') userPaused = true;
+      }).finally(() => {
+        playPending = false;
+        if (!workVisible || active !== 2 || document.hidden) video.pause();
+      });
+    }
+    function paint(distance, dt) {
+      if (reduced.matches) {
+        portfolio.inert = false;
+        const rect = portfolio.getBoundingClientRect();
+        const current = scenes.findIndex(scene => scene.getBoundingClientRect().bottom >= innerHeight / 2);
+        const visibleProject = current < 0 ? scenes.length - 1 : current;
+        if (visibleProject === 0 && rect.top < innerHeight && rect.bottom > 0) loadDreamShowz();
+        syncSegment(visibleProject);
+        syncWorkTheme(visibleProject);
+        root.classList.toggle('portfolio-active', rect.top <= 98 && rect.bottom > 98);
+        root.classList.remove('work-sweeping', 'sweep-brand-passed', 'sweep-controls-passed');
+        stage.style.setProperty('--page-two-cut', '0%');
+        sweep.style.setProperty('--sweep-opacity', '0');
+        portfolio.style.setProperty('--mouse-x', '0px');
+        portfolio.style.setProperty('--mouse-y', '0px');
+        const filmRect = video.getBoundingClientRect();
+        workVisible = filmRect.bottom > 0 && filmRect.top < innerHeight;
+        active = 2;
+        syncFilm();
+        return;
+      }
+      const d = (distance - foldDistance) / unit;
+      const reveal = smooth((d - timeline.hold) / (timeline.sweepEnd - timeline.hold));
+      const sideA = smooth((d - timeline.firstEnd) / (timeline.secondStart - timeline.firstEnd));
+      const sideB = smooth((d - timeline.secondEnd) / (timeline.thirdStart - timeline.secondEnd));
+      const position = sideA + sideB;
+      const sceneIndex = Math.round(position);
+      if (sceneIndex === requestedProject) requestedProject = null;
+      if (requestedProject === null) syncSegment(sceneIndex);
+      const visible = reveal >= .995;
+      const sweeping = reveal > .001 && reveal < .999;
+      root.classList.toggle('work-sweeping', sweeping);
+      root.classList.toggle('sweep-brand-passed', sweeping && reveal > brandCrossing);
+      root.classList.toggle('sweep-controls-passed', sweeping && reveal > controlsCrossing);
+      header.style.setProperty('--header-cut', `${100 - reveal * 100}%`);
+      stage.style.setProperty('--page-two-cut', `${reveal * 100}%`);
+      sweep.style.setProperty('--sweep-x', `${reveal * (width + 2) - 1}px`);
+      sweep.style.setProperty('--sweep-opacity', sweeping ? '1' : '0');
+      if (pixelSwap) pixelSwap.paint(position);
+      else portfolio.style.setProperty('--scene-x', `${-position * 100}%`);
+      portfolio.style.setProperty('--work-progress', clamp((d - timeline.sweepEnd) / (timeline.end - timeline.sweepEnd)));
+      // Transform each line through a fixed mask. Scroll can reverse it cleanly.
+      const arrivals = [.94, 2.66, 4.16];
+      lines.forEach((group, i) => group.forEach((line, j) => {
+        const amount = smooth((d - arrivals[i] - j * .065) / .23);
+        line.style.setProperty('--line-y', `${(1 - amount) * 115}%`);
+      }));
+      const follow = 1 - Math.exp(-dt / 70);
+      mouseX += (pointerX - mouseX) * follow;
+      mouseY += (pointerY - mouseY) * follow;
+      if (Math.abs(pointerX - mouseX) < .01) mouseX = pointerX;
+      if (Math.abs(pointerY - mouseY) < .01) mouseY = pointerY;
+      portfolio.style.setProperty('--mouse-x', `${mouseX.toFixed(2)}px`);
+      portfolio.style.setProperty('--mouse-y', `${mouseY.toFixed(2)}px`);
+      root.classList.toggle('portfolio-active', reveal > .5);
+      // Never leave focusable controls behind a clipped page or offscreen scene.
+      if (reveal > .001) destination.inert = true;
+      portfolio.inert = !visible;
+      portfolio.setAttribute('aria-hidden', String(!visible));
+      scenes.forEach((scene, i) => {
+        scene.inert = !visible || i !== sceneIndex;
+        scene.setAttribute('aria-hidden', String(!visible || i !== sceneIndex));
+      });
+      if (active !== sceneIndex || workVisible !== visible) {
+        active = sceneIndex;
+        syncWorkTheme(sceneIndex);
+        workVisible = visible;
+        if (active !== 0 || !visible) comparisonPreview?.cancel();
+        if (active === 0 && visible && liveMode) loadDreamShowz();
+        indexLabel.textContent = String(sceneIndex + 1).padStart(2, '0');
+        previous.disabled = sceneIndex === 0;
+        next.disabled = sceneIndex === 2;
+        pointerX = pointerY = 0;
+        syncFilm();
+      }
+    }
+    // A quick gesture can finish a nearby transition. Fine scrolling stays native.
+    const openings = [1.4, 2.98, 4.48];
+    let gesture = null;
+    let idleTimer;
+    let holdingPageTwo = false;
+    let previousY = scrollY;
+    let followNativeScroll = true;
+    function cancelLanding() {
+      gesture = null;
+      holdingPageTwo = false;
+      clearTimeout(idleTimer);
+    }
+    function beginGesture() {
+      requestedProject = null;
+      if (reduced.matches || document.querySelector('dialog[open]')) return;
+      followNativeScroll = true;
+      if (!gesture) gesture = { start:previousY, y:previousY, at:performance.now(), peak:0 };
+    }
+    function settleGesture() {
+      if (!gesture) return;
+      const { start, peak } = gesture;
+      cancelLanding();
+      const moved = scrollY - start;
+      if (reduced.matches || Math.abs(moved) < unit * .12 || peak < .85) return;
+      const pageTwo = Math.round(top + foldDistance);
+      // A flick released inside the hero can finish the lift. Always land on
+      // the capabilities page before considering the project openings.
+      if (start < pageTwo - 1 && moved > 0) {
+        if (moved >= unit * .18 || pageTwo - scrollY < unit * .28) {
+          scrollTo({ top:pageTwo, behavior:'smooth' });
+        }
+        return;
+      }
+      const targets = [pageTwo, ...openings.map(n => top + foldDistance + n * unit)];
+      const target = targets.filter(y => (y - start) * moved > 0)
+        .sort((a,b) => Math.abs(a - scrollY) - Math.abs(b - scrollY))[0];
+      if (target !== undefined && Math.abs(target - scrollY) < unit * .28 && Math.abs(target - scrollY) > 3) {
+        scrollTo({ top:target, behavior:'smooth' });
+      }
+    }
+    window.addEventListener('wheel', event => {
+      if (event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+      if (holdingPageTwo && event.deltaY < 0) cancelLanding();
+      beginGesture();
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(settleGesture, 180);
+    }, { passive:true });
+    window.addEventListener('touchmove', event => {
+      if (!event.target.closest('input,video,dialog') && event.touches.length === 1) beginGesture();
+    }, { passive:true });
+    window.addEventListener('scroll', () => {
+      const pageTwo = Math.round(top + foldDistance);
+      // Some input devices deliver the compositor scroll before the wheel event.
+      if (!gesture && followNativeScroll && previousY < pageTwo - 1 && scrollY > previousY) beginGesture();
+      previousY = scrollY;
+      if (!gesture) return;
+      const now = performance.now();
+      const speed = Math.abs(scrollY - gesture.y) / Math.max(12, now - gesture.at);
+      gesture.peak = Math.max(gesture.peak, speed);
+      gesture.at = now;
+      gesture.y = scrollY;
+      if (!reduced.matches && gesture.start < pageTwo - 1 && gesture.peak >= .85 && scrollY >= pageTwo) {
+        holdingPageTwo = true;
+      }
+      // Discard only the tail of this gesture. The shared animation loop still
+      // paints the original fold as it catches up to the exact landing.
+      if (holdingPageTwo && scrollY > pageTwo) scrollTo({ top:pageTwo, behavior:'instant' });
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(settleGesture, 180);
+    }, { passive:true });
+    function releaseForNavigation() {
+      requestedProject = null;
+      cancelLanding();
+      followNativeScroll = false;
+    }
+    window.addEventListener('pointerdown', releaseForNavigation, { passive:true });
+    window.addEventListener('touchstart', cancelLanding, { passive:true });
+    window.addEventListener('keyup', () => { followNativeScroll = true; });
+    window.addEventListener('keydown', event => { if (!event.defaultPrevented) releaseForNavigation(); });
+    window.addEventListener('pageshow', () => { previousY = scrollY; });
+    window.addEventListener('touchend', () => {
+      if (gesture) {
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(settleGesture, 180);
+      }
+    }, { passive:true });
+    const range = document.getElementById('compare-sites');
+    const comparison = range.parentElement;
+    const previewButton = document.getElementById('compare-preview');
+    const display = document.getElementById('dreamshowz-display');
+    const liveWindow = document.getElementById('dreamshowz-live');
+    const liveButton = document.getElementById('show-dreamshowz-live');
+    const compareButton = document.getElementById('show-dreamshowz-compare');
+    const liveHint = document.getElementById('dreamshowz-live-hint');
+    const mobileFrame = matchMedia('(max-width:700px)');
+    let liveMode = true, liveReady = false, liveFrame;
+    let comparisonPreview;
+
+    function sizeDreamShowzFrame() {
+      if (!liveFrame) return;
+      const { clientWidth, clientHeight } = display;
+      if (!clientWidth || !clientHeight) return;
+      const scale = mobileFrame.matches ? 1 : Math.min(1, clientWidth / 1280);
+      liveFrame.style.width = clientWidth / scale + 'px';
+      liveFrame.style.height = clientHeight / scale + 'px';
+      liveFrame.style.transform = `scale(${scale})`;
+    }
+    function setDreamShowzView(showLive) {
+      liveMode = showLive;
+      if (showLive) comparisonPreview?.cancel();
+      display.classList.toggle('is-live', showLive);
+      comparison.inert = showLive;
+      liveWindow.hidden = !showLive || !liveReady;
+      liveButton.setAttribute('aria-pressed', String(showLive));
+      compareButton.setAttribute('aria-pressed', String(!showLive));
+      previewButton.hidden = showLive;
+      liveHint.hidden = !showLive;
+      liveHint.textContent = liveReady ? 'Scroll inside to explore' : 'Loading live site…';
+    }
+    function loadDreamShowz() {
+      if (liveFrame || !liveMode) return;
+      const frame = document.createElement('iframe');
+      frame.title = 'DreamShowz live website';
+      frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
+      frame.allow = 'fullscreen';
+      frame.addEventListener('load', () => {
+        liveReady = true;
+        setDreamShowzView(liveMode);
+      }, { once:true });
+      frame.src = document.getElementById('dreamshowz-visit').href;
+      liveFrame = frame;
+      sizeDreamShowzFrame();
+      liveWindow.append(frame);
+    }
+    new ResizeObserver(sizeDreamShowzFrame).observe(display);
+    mobileFrame.addEventListener('change', sizeDreamShowzFrame);
+    setDreamShowzView(true);
+    liveButton.addEventListener('click', () => { setDreamShowzView(true); loadDreamShowz(); });
+    compareButton.addEventListener('click', () => setDreamShowzView(false));
+    range.addEventListener('input', () => {
+      comparison.style.setProperty('--before-width', range.value + '%');
+    });
+    for (const event of ['pointerdown', 'focus']) {
+      range.addEventListener(event, () => comparisonPreview?.cancel());
+    }
+    previewButton.addEventListener('click', () => {
+      if (comparisonPreview) {
+        comparisonPreview.cancel();
+        return;
+      }
+      const original = range.value + '%';
+      const opposite = range.valueAsNumber < 50 ? '100%' : '0%';
+      if (reduced.matches) {
+        range.value = opposite.slice(0, -1);
+        comparison.style.setProperty('--before-width', opposite);
+        return;
+      }
+      comparisonPreview = comparison.animate([
+        { '--before-width':original, easing:'cubic-bezier(.4,0,.2,1)' },
+        { '--before-width':opposite, offset:.38 },
+        { '--before-width':opposite, offset:.57, easing:'cubic-bezier(.4,0,.2,1)' },
+        { '--before-width':original }
+      ], { duration:1700 });
+      previewButton.textContent = 'Stop preview';
+      const restore = () => {
+        comparisonPreview = null;
+        previewButton.textContent = 'Preview comparison';
+      };
+      comparisonPreview.finished.then(restore, restore);
+    });
+    const detail = document.getElementById('redesign-detail');
+    document.getElementById('inspect-redesign').addEventListener('click', () => detail.showModal());
+    document.getElementById('close-redesign').addEventListener('click', () => detail.close());
+    const detailChoices = [...detail.querySelectorAll('[data-detail]')];
+    detailChoices.forEach(button => button.addEventListener('click', () => {
+      const enquiry = button.dataset.detail === 'enquiry';
+      detail.dataset.view = button.dataset.detail;
+      detail.querySelector('h2').textContent = enquiry ? 'Two ways in' : 'The first impression';
+      detail.querySelector('#detail-note').textContent = enquiry
+        ? '“Plan your event” opens the enquiry path. “View showreel” gives visitors who are still exploring a way to see the work.'
+        : 'An event stage and showreel invite visitors to explore the studio’s work before they share their plans.';
+      detailChoices.forEach(choice => choice.setAttribute('aria-pressed', String(choice === button)));
+    }));
+    function goToProject(target) {
+      if (reduced.matches) { scenes[target].scrollIntoView({ block: "center", behavior: "instant" }); return; }
+      cancelLanding();
+      requestedProject = target;
+      syncSegment(target);
+      scrollTo({ top: top + foldDistance + openings[target] * unit, behavior: reduced.matches ? 'instant' : 'smooth' });
+    }
+    previous.addEventListener('click', () => goToProject(Math.max(0, active - 1)));
+    next.addEventListener('click', () => goToProject(Math.min(2, active + 1)));
+
+    const brief = document.getElementById('brief-review');
+    const headline = document.getElementById('brief-headline');
+    const briefLabel = brief.querySelector('label');
+    const status = document.getElementById('brief-status');
+    const approve = brief.querySelector('[type="submit"]');
+    headline.addEventListener('input', () => headline.setCustomValidity(''));
+    brief.addEventListener('submit', event => {
+      event.preventDefault();
+      if (!headline.value.trim()) {
+        headline.setCustomValidity('Enter a headline to approve this draft.');
+        headline.reportValidity();
+        return;
+      }
+      const approved = !headline.readOnly;
+      headline.readOnly = approved;
+      brief.classList.toggle('approved', approved);
+      briefLabel.textContent = approved ? 'Approved post preview' : 'Draft headline';
+      status.textContent = approved ? 'Approved by owner' : 'Awaiting owner review';
+      approve.textContent = approved ? 'Edit draft' : 'Approve draft';
+      if (!approved) headline.focus({ preventScroll:true });
+    });
+    portfolio.addEventListener('pointermove', event => {
+      if (reduced.matches || !workVisible || event.pointerType !== 'mouse') return;
+      const visual = event.target.closest('.work-scene');
+      if (!visual) { pointerX = pointerY = 0; wake(); return; }
+      const rect = visual.getBoundingClientRect();
+      pointerX = ((event.clientX - rect.left) / rect.width - .5) * 10;
+      pointerY = ((event.clientY - rect.top) / rect.height - .5) * 7;
+      wake();
+    }, { passive:true });
+    portfolio.addEventListener('pointerleave', () => { pointerX = pointerY = 0; wake(); });
+
+    // Real asset paths are always attempted. Fallbacks appear only on failure.
+    portfolio.querySelectorAll('.comparison .asset-slot').forEach(slot => {
+      const image = slot.querySelector('img');
+      const fallback = slot.querySelector('.asset-fallback');
+      const loaded = () => { slot.classList.add('is-loaded'); slot.classList.remove('is-missing'); fallback.setAttribute('aria-hidden','true'); };
+      const failed = () => { slot.classList.remove('is-loaded'); slot.classList.add('is-missing'); fallback.setAttribute('aria-hidden','false'); };
+      image.addEventListener('load', loaded);
+      image.addEventListener('error', failed);
+      if (image.complete) image.naturalWidth ? loaded() : failed();
+    });
+    const poster = filmSlot.querySelector('.motion-poster');
+    let posterFailed = false, filmFailed = false;
+    function syncFilmFallback() {
+      const missing = posterFailed && filmFailed;
+      filmSlot.classList.toggle('is-missing', missing);
+      filmSlot.querySelector('.asset-fallback').setAttribute('aria-hidden', String(!missing));
+    }
+    const posterLoaded = () => { posterFailed = false; filmSlot.classList.add('has-poster'); syncFilmFallback(); };
+    const posterError = () => { posterFailed = true; filmSlot.classList.remove('has-poster'); syncFilmFallback(); };
+    const filmLoaded = () => {
+      filmFailed = false; videoReady = true; video.muted = true;
+      video.removeAttribute('aria-hidden');
+      filmSlot.classList.add('has-video'); shots.forEach(button => { button.disabled = false; });
+      syncFilmFallback(); syncFilm();
+    };
+    const filmError = () => {
+      filmFailed = true; videoReady = false;
+      video.setAttribute('aria-hidden', 'true');
+      filmSlot.classList.remove('has-video'); shots.forEach(button => { button.disabled = true; });
+      syncFilmFallback();
+    };
+    poster.addEventListener('load', posterLoaded);
+    poster.addEventListener('error', posterError);
+    if (poster.complete) poster.naturalWidth ? posterLoaded() : posterError();
+    video.addEventListener('loadeddata', filmLoaded);
+    video.addEventListener('loadedmetadata', () => { videoReady = true; syncFilm(); });
+    video.addEventListener('error', filmError);
+    if (video.readyState >= 2) filmLoaded(); else if (video.error) filmError();
+    video.addEventListener('play', () => { userPaused = false; });
+    video.addEventListener('pause', () => {
+      if (workVisible && active === 2 && !document.hidden) userPaused = true;
+    });
+    const playhead = portfolio.querySelector('.film-playhead');
+    const elapsed = document.getElementById('film-elapsed');
+    let previousFilmTime = 0;
+    video.addEventListener('timeupdate', () => {
+      const time = video.currentTime;
+      const duration = video.duration;
+      const jump = time < previousFilmTime || time - previousFilmTime > .55;
+      playhead.style.setProperty('--playhead-duration', jump || reduced.matches ? '0ms' : '200ms');
+      playhead.style.setProperty('--playhead', Number.isFinite(duration) && duration > 0 ? clamp(time / duration) : 0);
+      elapsed.textContent = '00:' + String(Math.floor(time)).padStart(2, '0');
+      previousFilmTime = time;
+      const current = shots.filter(button => Number(button.dataset.shot) <= video.currentTime).pop();
+      shots.forEach(button => button.setAttribute('aria-current', String(button === current)));
+    });
+    shots.forEach(button => button.addEventListener('click', () => {
+      loadFilm();
+      const seek = () => {
+        video.currentTime = Number(button.dataset.shot);
+        video.play().catch(() => { userPaused = true; });
+      };
+      if (video.readyState >= 1) seek();
+      else video.addEventListener('loadedmetadata', seek, { once:true });
+    }));
+    document.addEventListener('visibilitychange', () => { syncFilm(); wake(); });
+    syncLayout();
+    return { paint, measure, syncLayout, isSettling: () => Math.abs(pointerX - mouseX) > .01 || Math.abs(pointerY - mouseY) > .01 };
+  }
   const section = document.querySelector('.journey');
   const surface = document.querySelector('.surface');
   const destination = document.querySelector('.destination');
   const stage = document.querySelector('.stage');
+  const baseline = document.querySelector('.journey-baseline');
+  const workChapter = mountWorkChapter(section, stage, destination, reduced, schedule);
+  let maxProgress = 1;
   let frame = 0;
   let sectionTop = 0;
   let travel = 1;
@@ -1148,14 +1754,16 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
   let progress = 0;
   let lastFrame = 0;
   function readProgress() {
-    targetProgress = Math.max(0, Math.min(1, (scrollY - sectionTop) / travel));
+    targetProgress = Math.max(0, Math.min(maxProgress, (scrollY - sectionTop) / travel));
   }
   function measure() {
     sectionTop = section.getBoundingClientRect().top + scrollY;
-    travel = Math.max(1, section.offsetHeight - innerHeight);
+    travel = Math.max(1, baseline.offsetHeight - innerHeight);
+    maxProgress = Math.max(1, (section.offsetHeight - innerHeight) / travel);
+    workChapter.measure(travel, sectionTop);
     readProgress();
   }
-  function paint(p) {
+  function paintIntro(p) {
     // Keep animated properties local to the sticky scene.
     const style = stage.style;
     style.setProperty('--progress', p);
@@ -1178,6 +1786,10 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     destination.inert = p < .85;
     surface.style.pointerEvents = p > .85 ? 'none' : '';
   }
+  function paint(p, dt = 16.67) {
+    paintIntro(Math.min(1, p));
+    workChapter.paint(p * travel, dt);
+  }
   function animate(now) {
     frame = 0;
     const dt = lastFrame ? Math.min(64, now - lastFrame) : 16.67;
@@ -1185,20 +1797,20 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     // Frame-rate-independent easing softens wheel steps without intercepting scrolling.
     progress = reduced.matches ? targetProgress : progress + (targetProgress - progress) * (1 - Math.exp(-dt / 70));
     if (Math.abs(targetProgress - progress) < .0001) progress = targetProgress;
-    paint(progress);
-    if (progress !== targetProgress) frame = requestAnimationFrame(animate);
+    paint(progress, dt);
+    if (progress !== targetProgress || workChapter.isSettling()) frame = requestAnimationFrame(animate);
     else lastFrame = 0;
   }
   function schedule() { if (!frame) frame = requestAnimationFrame(animate); }
   addEventListener('scroll', () => { readProgress(); schedule(); }, { passive: true });
   addEventListener('resize', () => { measure(); schedule(); }, { passive: true });
-  reduced.addEventListener('change', () => { readProgress(); schedule(); });
+  reduced.addEventListener('change', () => { workChapter.syncLayout(); measure(); progress = targetProgress; schedule(); });
   addEventListener('pageshow', () => { measure(); progress = targetProgress; paint(progress); });
   measure();
   progress = targetProgress;
   paint(progress);
   for (const id of ['explore', 'scroll']) document.getElementById(id).addEventListener('click', () => {
-    scrollTo({ top: section.offsetHeight - innerHeight, behavior: reduced.matches ? 'instant' : 'smooth' });
+    scrollTo({ top: sectionTop + travel, behavior: reduced.matches ? 'instant' : 'smooth' });
   });
 })();
 

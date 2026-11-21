@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en" data-theme="Dark">
+<html lang="en" data-theme="dark">
 
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#0a0a0b">
+  <meta name="theme-color" content="#202426">
   <meta name="description"
     content="Websites, custom software, AI automations and motion. Kinetiq brings your next idea to life.">
   <title>Kinetiq — Your next move, built.</title>
@@ -40,7 +40,107 @@
   </header>
   <main id="home">
     <section class="journey" aria-label="Kinetiq introduction">
+      <div class="journey-baseline" aria-hidden="true"></div>
       <div class="stage">
+        <section class="portfolio" id="selected-work" aria-labelledby="portfolio-title" inert>
+          <div class="portfolio-heading">
+            <h2 id="portfolio-title">Selected work</h2>
+            <nav class="work-directory" aria-label="Jump to a project">
+              <button type="button" data-project="0">DreamShowz</button>
+              <button type="button" data-project="1">Research agent</button>
+              <button type="button" data-project="2">Cursor</button>
+            </nav>
+          </div>
+          <div class="work-viewport">
+            <div class="work-track">
+              <article class="work-scene redesign-scene" data-work-theme="dreamshowz" aria-labelledby="dreamshowz-title">
+                <div class="redesign-caption">
+                  <div>
+                    <span class="study-type">Client work / Web design</span>
+                    <div class="work-mask"><h3 class="work-line" data-line="0" id="dreamshowz-title">DreamShowz</h3></div>
+                  </div>
+                  <p class="scene-deck">From a booking form to a front-row view of the studio’s events.</p>
+                  <div class="study-links">
+                    <button type="button" id="inspect-redesign">Inside the redesign</button>
+                    <a id="dreamshowz-visit" href="https://www.dreamshowz.com/" target="_blank" rel="noopener noreferrer">Visit site ↗</a>
+                  </div>
+                </div>
+                <div class="showcase-window">
+                  <div class="browser-caption">
+                    <span class="browser-lights" aria-hidden="true"><i></i><i></i><i></i></span>
+                    <span class="browser-tab">DreamShowz</span>
+                    <span class="browser-address">dreamshowz.com</span>
+                  </div>
+                  <div class="redesign-table" id="dreamshowz-display">
+                  <div class="comparison" style="--before-width:3%">
+                    <div class="comparison-layer comparison-after asset-slot">
+                      <img src="images/dreamshowz-after.webp" alt="Redesign with an event stage, showreel and enquiry options" decoding="async">
+                      <div class="asset-fallback" aria-hidden="true"><p>Redesigned website</p></div>
+                    </div>
+                    <div class="comparison-layer comparison-before asset-slot">
+                      <img src="images/dreamshowz-before.webp" alt="Original homepage with a blue enquiry form above the event gallery" decoding="async">
+                      <div class="asset-fallback" aria-hidden="true"><p>Original website</p></div>
+                    </div>
+                    <div class="compare-rule" aria-hidden="true"><span class="compare-grip"></span></div>
+                    <input id="compare-sites" type="range" min="0" max="100" value="3" aria-label="Amount of original DreamShowz site shown">
+                  </div>
+                  <div class="dreamshowz-live" id="dreamshowz-live" hidden></div>
+                </div>
+                <div class="comparison-key">
+                  <button type="button" id="show-dreamshowz-live" aria-pressed="true">Live site</button>
+                  <span id="dreamshowz-live-hint">Scroll inside to explore</span>
+                  <button type="button" id="compare-preview" hidden>Preview comparison</button>
+                  <button type="button" id="show-dreamshowz-compare" aria-pressed="false">Compare</button>
+                </div></div>
+              </article>
+              <article class="work-scene research-scene" data-work-theme="research" aria-labelledby="research-title" inert>
+                <div class="research-intro">
+                  <span class="study-type">Custom automation / Editorial</span>
+                  <div class="work-mask"><h3 class="work-line" data-line="0" id="research-title">Research <br>agent</h3></div>
+                  <p class="scene-deck">Sourced drafts three times a day for a geopolitics creator. The owner edits each one before it goes out.</p>
+                </div>
+                <div class="brief-desk">
+                  <form class="brief-paper" id="brief-review">
+                    <div class="brief-mast"><strong>Editorial desk</strong><span>Interactive sample</span></div>
+                    <div class="brief-body">
+                      <label class="brief-label" for="brief-headline">Draft headline</label>
+                      <textarea id="brief-headline" rows="2" maxlength="140" required spellcheck="false">Trade talks resume with shipping routes on the agenda</textarea>
+                      <details class="source-note"><summary>Source note</summary><p>Illustrative meeting agenda · Delegates will discuss shipping routes when trade talks resume.</p></details>
+                    </div>
+                    <div class="brief-action"><span role="status" id="brief-status">Awaiting owner review</span><button type="submit">Approve draft</button></div>
+                  </form>
+                </div>
+              </article>
+              <article class="work-scene cursor-scene" data-work-theme="cursor" aria-labelledby="motion-title" inert>
+                <div class="film-notes">
+                  <div class="study-type">Self-initiated / Motion design</div>
+                  <div class="work-mask"><h3 class="work-line" data-line="0" id="motion-title">Cursor</h3></div>
+                  <p>An independent product film tracing an idea from the first prompt to the final edit.</p>
+
+                </div>
+                <div class="film-screen">
+                  <div class="motion-media asset-slot">
+                    <img class="motion-poster" src="images/motion-poster.webp" alt="Ideas into code, the opening title of the Cursor study">
+                    <video id="work-motion" data-src="images/motion.mp4" poster="images/motion-poster.webp" controls muted loop playsinline preload="none" aria-label="Cursor independent motion study"></video>
+                    <div class="asset-fallback" aria-hidden="true"><p>Film preview unavailable</p></div>
+                  </div>
+                  <div class="film-playhead" aria-hidden="true"></div>
+                  <div class="film-shots" role="group" aria-label="Jump to a shot">
+                    <button type="button" data-shot="3"><img src="images/cursor-agent.webp" alt=""><span>Agent</span><time>00:03</time></button>
+                    <button type="button" data-shot="11"><img src="images/cursor-tab.webp" alt=""><span>Tab</span><time>00:11</time></button>
+                    <button type="button" data-shot="15"><img src="images/cursor-flow.webp" alt=""><span>Workflow</span><time>00:15</time></button>
+                  </div>
+                  <div class="film-credit"><span>Motion design by kinetiq</span><span><time id="film-elapsed">00:00</time> / 00:23</span></div>
+                </div>
+              </article>
+            </div>
+          </div>
+          <div class="work-footer">
+            <span class="work-counter" aria-live="polite" aria-atomic="true"><span id="work-index">01</span><span> / 03</span></span>
+            <div class="work-progress" aria-hidden="true"><i></i></div>
+            <div class="work-controls"><button type="button" id="work-prev" aria-label="Previous project">←</button><button type="button" id="work-next" aria-label="Next project">→</button></div>
+          </div>
+        </section>
         <section class="destination capabilities" id="work" aria-labelledby="capabilities-title" inert>
           <div class="capability-heading">
             <p class="section-index">01 / WHAT WE BUILD</p>
@@ -156,6 +256,13 @@
       </div>
     </section>
   </main>
+  <dialog id="redesign-detail" aria-labelledby="detail-title">
+    <div class="detail-head"><div><span class="study-type">DreamShowz / Design notes</span><h2 id="detail-title">The first impression</h2></div><button type="button" id="close-redesign" aria-label="Close design notes">Close ×</button></div>
+    <div class="detail-image"><img src="images/dreamshowz-after.webp" alt="DreamShowz homepage redesign"></div>
+    <p id="detail-note">An event stage and showreel invite visitors to explore the studio’s work before they share their plans.</p>
+    <div class="detail-options" role="group" aria-label="Inspect a design decision"><button type="button" data-detail="hero" aria-pressed="true">First impression</button><button type="button" data-detail="enquiry" aria-pressed="false">Enquiry path</button></div>
+  </dialog>
+  <div class="work-sweep" aria-hidden="true"><span class="sweep-head"></span></div>
 </body>
 
 </html>
