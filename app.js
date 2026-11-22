@@ -1,6 +1,5 @@
 // Small screens, touch-first devices and reduced motion use the document's own scroll.
 const readingLayout = matchMedia('(max-width: 780px), (pointer: coarse), (prefers-reduced-motion: reduce)');
-document.documentElement.classList.toggle('reading-layout', readingLayout.matches);
 
 /* TechText canvas engine adapted from the React Bits source supplied by the user.
    React lifecycle replaced with DOM mounting; rendering, outlines and springs retained. */
@@ -1009,7 +1008,7 @@ mountHeadings();
   function theme(value) {
     root.dataset.theme = value;
     toggle.setAttribute('aria-checked', String(value === 'dark'));
-    document.querySelector('meta[name="theme-color"]').content = getComputedStyle(root).getPropertyValue('--bg').trim();
+    document.querySelector('meta[name="theme-color"]').content = getComputedStyle(root).getPropertyValue('--home-bg').trim();
   }
 try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : 'dark'); } catch (_) {}  let themeBusy = false;
   let activeThemeTransition = null;
@@ -1335,7 +1334,10 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     const timeline = { hold: .45, sweepEnd: 1.35, firstEnd: 2.3, secondStart: 2.95, secondEnd: 3.8, thirdStart: 4.45 };
 
     const studio = document.querySelector('.studio-sculpture');
-    const mobileReveals = portfolio.querySelectorAll('.portfolio-heading, .showcase-window, .brief-desk, .film-screen');
+    const mobileReveals = [
+      destination.querySelector('.capability-heading'),
+      ...portfolio.querySelectorAll('.portfolio-heading, .showcase-window, .brief-desk, .film-screen')
+    ];
     let revealObserver;
     let lastStudioTurn = -1;
     function syncMobileMotion() {
@@ -1347,19 +1349,53 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
       if (!readingLayout.matches || reduced.matches) return;
       revealObserver = new IntersectionObserver(entries => {
         for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          entry.target.classList.add('entered-view');
-          revealObserver.unobserve(entry.target);
+          if (!entry.isIntersecting) entry.target.classList.remove('entered-view');
+          else if (entry.intersectionRatio >= .12) entry.target.classList.add('entered-view');
         }
       }, { rootMargin:'0px 0px -7% 0px', threshold:.12 });
       mobileReveals.forEach(element => revealObserver.observe(element));
     }
     reduced.addEventListener('change', syncMobileMotion);
 
+    // Keep native panning throughout the gesture. A deliberate release helps the
+    // browser reach the adjacent snap point even on devices with little inertia.
+    const mobileStops = [surface, destination, portfolio, ...scenes.slice(1)];
+    let swipeStart = null;
+    window.addEventListener('touchstart', event => {
+      swipeStart = null;
+      if (!readingLayout.matches || reduced.matches || event.touches.length !== 1 ||
+          event.target.closest('dialog,input,textarea,video,.work-directory,.dreamshowz-live')) return;
+      const {clientX:x, clientY:y} = event.touches[0];
+      const offset = header.offsetHeight;
+      const end = document.documentElement.scrollHeight - innerHeight;
+      const stops = mobileStops.map(el => Math.min(end, Math.max(0, scrollY +
+        el.getBoundingClientRect().top - offset - (parseFloat(getComputedStyle(el).scrollMarginTop) || 0))));
+      let index = 0;
+      while (index + 1 < stops.length && stops[index + 1] <= scrollY + 6) index++;
+      swipeStart = {x,y,at:event.timeStamp,index,stops,offset};
+    }, {passive:true});
+    window.addEventListener('touchcancel', () => { swipeStart = null; }, {passive:true});
+    window.addEventListener('touchend', event => {
+      const start = swipeStart;
+      swipeStart = null;
+      if (!start || event.touches.length || !readingLayout.matches || reduced.matches) return;
+      const point = event.changedTouches[0];
+      const dy = start.y - point.clientY;
+      const distance = Math.abs(dy);
+      if (distance < 58 || distance < Math.abs(start.x - point.clientX) * 1.4 ||
+          distance / Math.max(1, event.timeStamp - start.at) < .34) return;
+      const next = start.index + Math.sign(dy);
+      if (next < 0 || next >= mobileStops.length) return;
+      // Tall chapters (for instance an open service or live embed) still have
+      // readable content between stops. Allow normal scrolling through it.
+      const room = innerHeight - start.offset;
+      if (dy > 0 && start.stops[next] - scrollY > room + 36) return;
+      if (dy < 0 && scrollY > start.stops[start.index] + 36) return;
+      requestAnimationFrame(() => scrollTo({top:start.stops[next],behavior:'smooth'}));
+    }, {passive:true});
+
     function syncLayout() {
-      root.classList.toggle('reading-layout', readingLayout.matches);
       if (readingLayout.matches) {
-        destination.before(surface);
         section.after(portfolio);
         surface.inert = destination.inert = false;
         surface.style.pointerEvents = '';
@@ -1373,6 +1409,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
         anchor.after(portfolio);
         active = -1;
       }
+      root.classList.toggle('reading-layout', readingLayout.matches);
       syncMobileMotion();
       if (readingLayout.matches) comparisonPreview?.cancel();
       syncFilm();
@@ -1429,7 +1466,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
             lastStudioTurn = turn;
           }
         }
-        const top = portfolio.getBoundingClientRect().top;
+        const { top, bottom } = portfolio.getBoundingClientRect();
         const eye = innerHeight * .5;
         const current = scenes.findIndex(scene => scene.getBoundingClientRect().bottom >= eye);
         active = current < 0 ? scenes.length - 1 : current;
@@ -1443,7 +1480,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
         syncSegment(active);
         syncWorkTheme(active);
         root.classList.toggle('work-active', destination.getBoundingClientRect().top <= header.offsetHeight && top > header.offsetHeight);
-        root.classList.toggle('portfolio-active', top <= header.offsetHeight);
+        root.classList.toggle('portfolio-active', top <= header.offsetHeight + 1 && bottom > header.offsetHeight);
         return;
       }
       const d = (distance - foldDistance) / unit;
