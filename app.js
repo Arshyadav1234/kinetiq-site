@@ -1293,8 +1293,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     };
   }
 
-  /* Page 3 shares the intro's RAF and 70ms exponential follow. Distances below
-     begin AFTER the original fold has completed; none rescales that fold. */
+  /* Work uses the same timeline for project navigation and the gallery reveal. */
   function mountWorkChapter(section, stage, destination, reduced, wake) {
     const portfolio = document.getElementById('selected-work');
     const anchor = document.createComment('Page 3 position inside the sticky stage');
@@ -1317,14 +1316,14 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     const video = document.getElementById('work-motion');
     const shots = [...portfolio.querySelectorAll('[data-shot]')];
     const filmSlot = video.parentElement;
-    let unit = innerHeight, foldDistance = 1, top = 0, width = innerWidth;
+    let unit = innerHeight, foldDistance = 1, width = innerWidth;
     let active = -1, workVisible = false, pointerX = 0, pointerY = 0, mouseX = 0, mouseY = 0;
     let videoReady = false, userPaused = false, playPending = false;
     const clamp = value => Math.max(0, Math.min(1, value));
     const smooth = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
     // In viewport units: reading hold, sweep, first study, side slide, second
     // study, side slide, third study. The final .15 leaves room to settle.
-    const timeline = { hold: .45, sweepEnd: 1.35, firstEnd: 2.3, secondStart: 2.95, secondEnd: 3.8, thirdStart: 4.45, end: 5.1 };
+    const timeline = { hold: .45, sweepEnd: 1.35, firstEnd: 2.3, secondStart: 2.95, secondEnd: 3.8, thirdStart: 4.45 };
 
     function syncLayout() {
       if (reduced.matches) {
@@ -1337,9 +1336,8 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
       if (reduced.matches) comparisonPreview?.cancel();
       syncFilm();
     }
-    function measure(distance, sectionTop) {
+    function measure(distance) {
       foldDistance = distance;
-      top = sectionTop;
       width = document.documentElement.clientWidth;
       const brandRect = header.querySelector('.brand').getBoundingClientRect();
       const controlsRect = header.querySelector('.nav-right').getBoundingClientRect();
@@ -1410,7 +1408,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
       sweep.style.setProperty('--sweep-opacity', sweeping ? '1' : '0');
       if (pixelSwap) pixelSwap.paint(position);
       else portfolio.style.setProperty('--scene-x', `${-position * 100}%`);
-      portfolio.style.setProperty('--work-progress', clamp((d - timeline.sweepEnd) / (timeline.end - timeline.sweepEnd)));
+      portfolio.style.setProperty('--work-progress', clamp((d - timeline.sweepEnd) / (openings.at(-1) - timeline.sweepEnd)));
       // Transform each line through a fixed mask. Scroll can reverse it cleanly.
       const arrivals = [.94, 2.66, 4.16];
       lines.forEach((group, i) => group.forEach((line, j) => {
@@ -1446,92 +1444,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
         syncFilm();
       }
     }
-    // A quick gesture can finish a nearby transition. Fine scrolling stays native.
     const openings = [1.4, 2.98, 4.48];
-    let gesture = null;
-    let idleTimer;
-    let holdingPageTwo = false;
-    let previousY = scrollY;
-    let followNativeScroll = true;
-    function cancelLanding() {
-      gesture = null;
-      holdingPageTwo = false;
-      clearTimeout(idleTimer);
-    }
-    function beginGesture() {
-      requestedProject = null;
-      if (reduced.matches || document.querySelector('dialog[open]')) return;
-      followNativeScroll = true;
-      if (!gesture) gesture = { start:previousY, y:previousY, at:performance.now(), peak:0 };
-    }
-    function settleGesture() {
-      if (!gesture) return;
-      const { start, peak } = gesture;
-      cancelLanding();
-      const moved = scrollY - start;
-      if (reduced.matches || Math.abs(moved) < unit * .12 || peak < .85) return;
-      const pageTwo = Math.round(top + foldDistance);
-      // A flick released inside the hero can finish the lift. Always land on
-      // the capabilities page before considering the project openings.
-      if (start < pageTwo - 1 && moved > 0) {
-        if (moved >= unit * .18 || pageTwo - scrollY < unit * .28) {
-          scrollTo({ top:pageTwo, behavior:'smooth' });
-        }
-        return;
-      }
-      const targets = [pageTwo, ...openings.map(n => top + foldDistance + n * unit)];
-      const target = targets.filter(y => (y - start) * moved > 0)
-        .sort((a,b) => Math.abs(a - scrollY) - Math.abs(b - scrollY))[0];
-      if (target !== undefined && Math.abs(target - scrollY) < unit * .28 && Math.abs(target - scrollY) > 3) {
-        scrollTo({ top:target, behavior:'smooth' });
-      }
-    }
-    window.addEventListener('wheel', event => {
-      if (event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
-      if (holdingPageTwo && event.deltaY < 0) cancelLanding();
-      beginGesture();
-      clearTimeout(idleTimer);
-      idleTimer = setTimeout(settleGesture, 180);
-    }, { passive:true });
-    window.addEventListener('touchmove', event => {
-      if (!event.target.closest('input,video,dialog') && event.touches.length === 1) beginGesture();
-    }, { passive:true });
-    window.addEventListener('scroll', () => {
-      const pageTwo = Math.round(top + foldDistance);
-      // Some input devices deliver the compositor scroll before the wheel event.
-      if (!gesture && followNativeScroll && previousY < pageTwo - 1 && scrollY > previousY) beginGesture();
-      previousY = scrollY;
-      if (!gesture) return;
-      const now = performance.now();
-      const speed = Math.abs(scrollY - gesture.y) / Math.max(12, now - gesture.at);
-      gesture.peak = Math.max(gesture.peak, speed);
-      gesture.at = now;
-      gesture.y = scrollY;
-      if (!reduced.matches && gesture.start < pageTwo - 1 && gesture.peak >= .85 && scrollY >= pageTwo) {
-        holdingPageTwo = true;
-      }
-      // Discard only the tail of this gesture. The shared animation loop still
-      // paints the original fold as it catches up to the exact landing.
-      if (holdingPageTwo && scrollY > pageTwo) scrollTo({ top:pageTwo, behavior:'instant' });
-      clearTimeout(idleTimer);
-      idleTimer = setTimeout(settleGesture, 180);
-    }, { passive:true });
-    function releaseForNavigation() {
-      requestedProject = null;
-      cancelLanding();
-      followNativeScroll = false;
-    }
-    window.addEventListener('pointerdown', releaseForNavigation, { passive:true });
-    window.addEventListener('touchstart', cancelLanding, { passive:true });
-    window.addEventListener('keyup', () => { followNativeScroll = true; });
-    window.addEventListener('keydown', event => { if (!event.defaultPrevented) releaseForNavigation(); });
-    window.addEventListener('pageshow', () => { previousY = scrollY; });
-    window.addEventListener('touchend', () => {
-      if (gesture) {
-        clearTimeout(idleTimer);
-        idleTimer = setTimeout(settleGesture, 180);
-      }
-    }, { passive:true });
     const range = document.getElementById('compare-sites');
     const comparison = range.parentElement;
     const previewButton = document.getElementById('compare-preview');
@@ -1541,7 +1454,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     const compareButton = document.getElementById('show-dreamshowz-compare');
     const liveHint = document.getElementById('dreamshowz-live-hint');
     const mobileFrame = matchMedia('(max-width:700px)');
-    let liveMode = true, liveReady = false, liveFrame;
+    let liveMode = liveButton.getAttribute('aria-pressed') === 'true', liveReady = false, liveFrame;
     let comparisonPreview;
 
     function sizeDreamShowzFrame() {
@@ -1582,7 +1495,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     }
     new ResizeObserver(sizeDreamShowzFrame).observe(display);
     mobileFrame.addEventListener('change', sizeDreamShowzFrame);
-    setDreamShowzView(true);
+    setDreamShowzView(liveMode);
     liveButton.addEventListener('click', () => { setDreamShowzView(true); loadDreamShowz(); });
     compareButton.addEventListener('click', () => setDreamShowzView(false));
     range.addEventListener('input', () => {
@@ -1631,10 +1544,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     }));
     function goToProject(target) {
       if (reduced.matches) { scenes[target].scrollIntoView({ block: "center", behavior: "instant" }); return; }
-      cancelLanding();
-      requestedProject = target;
-      syncSegment(target);
-      scrollTo({ top: top + foldDistance + openings[target] * unit, behavior: reduced.matches ? 'instant' : 'smooth' });
+      goToStop(target + 2, false, target);
     }
     previous.addEventListener('click', () => goToProject(Math.max(0, active - 1)));
     next.addEventListener('click', () => goToProject(Math.min(2, active + 1)));
@@ -1738,7 +1648,16 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     }));
     document.addEventListener('visibilitychange', () => { syncFilm(); wake(); });
     syncLayout();
-    return { paint, measure, syncLayout, isSettling: () => Math.abs(pointerX - mouseX) > .01 || Math.abs(pointerY - mouseY) > .01 };
+    return {
+      paint, measure, syncLayout,
+      selectProject(index) {
+        requestedProject = index;
+        if (index !== null) syncSegment(index);
+      },
+      projectPositions: () => openings.map(opening => (foldDistance + opening * unit) / foldDistance),
+      sweepStart: () => (foldDistance + timeline.hold * unit) / foldDistance,
+      isSettling: () => Math.abs(pointerX - mouseX) > .01 || Math.abs(pointerY - mouseY) > .01
+    };
   }
   const section = document.querySelector('.journey');
   const surface = document.querySelector('.surface');
@@ -1750,18 +1669,20 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
   let frame = 0;
   let sectionTop = 0;
   let travel = 1;
-  let targetProgress = 0;
+  let stops = [0, 1];
+  let currentStop = 0;
+  let transition = null;
   let progress = 0;
   let lastFrame = 0;
   function readProgress() {
-    targetProgress = Math.max(0, Math.min(maxProgress, (scrollY - sectionTop) / travel));
+    return Math.max(0, Math.min(maxProgress, (scrollY - sectionTop) / travel));
   }
   function measure() {
     sectionTop = section.getBoundingClientRect().top + scrollY;
     travel = Math.max(1, baseline.offsetHeight - innerHeight);
     maxProgress = Math.max(1, (section.offsetHeight - innerHeight) / travel);
-    workChapter.measure(travel, sectionTop);
-    readProgress();
+    workChapter.measure(travel);
+    stops = [0, 1, ...workChapter.projectPositions()];
   }
   function paintIntro(p) {
     // Keep animated properties local to the sticky scene.
@@ -1790,27 +1711,175 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     paintIntro(Math.min(1, p));
     workChapter.paint(p * travel, dt);
   }
+  function stopY() {
+    return Math.round(sectionTop + stops[currentStop] * travel);
+  }
+  function syncScrollPosition() {
+    if (Math.abs(scrollY - stopY()) > 1) scrollTo({ top:stopY(), behavior:'instant' });
+  }
+  function goToStop(index, instant = false, selectedProject = null) {
+    const next = Math.max(0, Math.min(stops.length - 1, index));
+    if (reduced.matches) {
+      scrollTo({ top:sectionTop + stops[next] * travel, behavior:'instant' });
+      return;
+    }
+    if (next === currentStop && (transition || progress === stops[next])) return;
+    workChapter.selectProject(selectedProject);
+    const from = progress;
+    const to = stops[next];
+    const sweepStart = workChapter.sweepStart();
+    const forwardSweep = from >= 1 && from <= sweepStart && next === 2;
+    const reverseSweep = from > sweepStart && from <= stops[2] && next === 1;
+    currentStop = next;
+    syncScrollPosition();
+    transition = instant ? null : {
+      from:forwardSweep ? sweepStart : from,
+      to:reverseSweep ? sweepStart : to,
+      start:performance.now(),
+      duration:forwardSweep || reverseSweep ? 1050 : 760
+    };
+    if (instant) progress = to;
+    schedule();
+  }
   function animate(now) {
     frame = 0;
     const dt = lastFrame ? Math.min(64, now - lastFrame) : 16.67;
     lastFrame = now;
-    // Frame-rate-independent easing softens wheel steps without intercepting scrolling.
-    progress = reduced.matches ? targetProgress : progress + (targetProgress - progress) * (1 - Math.exp(-dt / 70));
-    if (Math.abs(targetProgress - progress) < .0001) progress = targetProgress;
+    if (reduced.matches) progress = readProgress();
+    if (transition) {
+      const t = Math.min(1, Math.max(0, (now - transition.start) / transition.duration));
+      const eased = t * t * (3 - 2 * t);
+      progress = transition.from + (transition.to - transition.from) * eased;
+      if (t === 1) {
+        progress = stops[currentStop];
+        transition = null;
+      }
+    }
     paint(progress, dt);
-    if (progress !== targetProgress || workChapter.isSettling()) frame = requestAnimationFrame(animate);
+    if (transition || workChapter.isSettling()) frame = requestAnimationFrame(animate);
     else lastFrame = 0;
   }
   function schedule() { if (!frame) frame = requestAnimationFrame(animate); }
-  addEventListener('scroll', () => { readProgress(); schedule(); }, { passive: true });
-  addEventListener('resize', () => { measure(); schedule(); }, { passive: true });
-  reduced.addEventListener('change', () => { workChapter.syncLayout(); measure(); progress = targetProgress; schedule(); });
-  addEventListener('pageshow', () => { measure(); progress = targetProgress; paint(progress); });
-  measure();
-  progress = targetProgress;
-  paint(progress);
-  for (const id of ['explore', 'scroll']) document.getElementById(id).addEventListener('click', () => {
-    scrollTo({ top: sectionTop + travel, behavior: reduced.matches ? 'instant' : 'smooth' });
+
+  // Treat a burst of wheel input as one gesture, including its momentum tail.
+  let lastWheel = -Infinity;
+  let burstStart = 0, wheelDistance = 0, wheelDirection = 0, wheelUsed = false;
+  function collectWheel(delta, now, nativeOnly = false) {
+    const direction = Math.sign(delta);
+    if (!direction) return;
+    if (now - lastWheel > 170 || direction !== wheelDirection) {
+      burstStart = now;
+      wheelDistance = 0;
+      wheelUsed = false;
+    }
+    lastWheel = now;
+    wheelDirection = direction;
+    if (transition || nativeOnly) wheelUsed = true;
+    if (wheelUsed) return;
+    if (now - burstStart > 180) {
+      wheelDistance = 0;
+      burstStart = now;
+    }
+    wheelDistance += Math.abs(delta);
+    if (Math.abs(delta) >= 72 || wheelDistance >= 104) {
+      wheelUsed = true;
+      goToStop(currentStop + direction);
+    }
+  }
+  function canScrollInside(target, delta) {
+    const pane = target.closest('.capability-list, textarea');
+    if (!pane) return false;
+    return delta > 0 ? pane.scrollTop + pane.clientHeight < pane.scrollHeight - 1 : pane.scrollTop > 0;
+  }
+  const dialogOpen = () => Boolean(document.querySelector('dialog[open]'));
+  window.addEventListener('wheel', event => {
+    if (reduced.matches || event.ctrlKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY) || dialogOpen()) return;
+    const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1);
+    const nested = canScrollInside(event.target, delta);
+    if (!nested && event.cancelable) event.preventDefault();
+    collectWheel(delta, performance.now(), nested);
+  }, { passive:false });
+
+  let touch = null;
+  window.addEventListener('touchstart', event => {
+    touch = null;
+    if (reduced.matches || dialogOpen() || event.touches.length !== 1 || event.target.closest('input, textarea, video, .work-directory')) return;
+    const point = event.touches[0];
+    touch = { x:point.clientX, y:point.clientY, start:performance.now(), used:false, nested:false };
+  }, { passive:true });
+  window.addEventListener('touchmove', event => {
+    if (!touch || event.touches.length !== 1 || reduced.matches) return;
+    const point = event.touches[0];
+    const delta = touch.y - point.clientY;
+    if (Math.abs(delta) < 7 || Math.abs(point.clientX - touch.x) > Math.abs(delta)) return;
+    if (!touch.used && canScrollInside(event.target, delta)) touch.nested = true;
+    if (touch.nested) return;
+    if (event.cancelable) event.preventDefault();
+    if (transition) touch.used = true;
+    if (!touch.used && Math.abs(delta) >= 60 && Math.abs(delta) / Math.max(1, performance.now() - touch.start) >= .16) {
+      touch.used = true;
+      goToStop(currentStop + Math.sign(delta));
+    }
+  }, { passive:false });
+  for (const type of ['touchend','touchcancel']) window.addEventListener(type, () => { touch = null; }, { passive:true });
+
+  window.addEventListener('keydown', event => {
+    if (reduced.matches || dialogOpen() || event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey) return;
+    if (event.target.closest('button, a, summary, input, textarea, select, video, [contenteditable]')) return;
+    const direction = { ArrowDown:1, PageDown:1, ArrowUp:-1, PageUp:-1 }[event.key] ?? (event.key === ' ' ? (event.shiftKey ? -1 : 1) : 0);
+    if (!direction && event.key !== 'Home' && event.key !== 'End') return;
+    if (direction && canScrollInside(event.target, direction)) return;
+    event.preventDefault();
+    if (event.repeat) return;
+    if (event.key === 'Home' || event.key === 'End') goToStop(event.key === 'Home' ? 0 : stops.length - 1, true);
+    else if (!transition) goToStop(currentStop + direction);
+  });
+
+  window.addEventListener('scroll', () => {
+    if (reduced.matches) { schedule(); return; }
+    if (dialogOpen()) return;
+    // Keep momentum and compositor scroll from leaving a card half revealed.
+    const delta = scrollY - stopY();
+    if (Math.abs(delta) <= 1) return;
+    syncScrollPosition();
+    collectWheel(delta, performance.now());
+  }, { passive:true });
+  window.addEventListener('resize', () => {
+    const oldWorkDistance = stops[2] - 1;
+    measure();
+    if (!reduced.matches) {
+      if (transition) {
+        const ratio = (stops[2] - 1) / oldWorkDistance;
+        const resizeProgress = value => value <= 1 ? value : 1 + (value - 1) * ratio;
+        transition.from = resizeProgress(transition.from);
+        transition.to = resizeProgress(transition.to);
+        progress = resizeProgress(progress);
+      } else progress = stops[currentStop];
+      syncScrollPosition();
+    }
+    schedule();
+  }, { passive:true });
+  reduced.addEventListener('change', () => {
+    workChapter.syncLayout();
+    restoreStop();
+  });
+  function restoreStop() {
+    measure();
+    transition = null;
+    workChapter.selectProject(null);
+    const restored = readProgress();
+    currentStop = stops.reduce((nearest, stop, i) => Math.abs(stop - restored) < Math.abs(stops[nearest] - restored) ? i : nearest, 0);
+    progress = reduced.matches ? restored : stops[currentStop];
+    if (!reduced.matches) syncScrollPosition();
+    paint(progress);
+  }
+  window.addEventListener('pageshow', restoreStop);
+  restoreStop();
+  for (const id of ['explore', 'scroll']) document.getElementById(id).addEventListener('click', () => goToStop(1));
+  document.querySelector('.brand').addEventListener('click', event => {
+    if (reduced.matches || event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) return;
+    event.preventDefault();
+    goToStop(0);
   });
 })();
 
