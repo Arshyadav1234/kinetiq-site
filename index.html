@@ -11,11 +11,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
-    rel="stylesheet">
+    rel="stylesheet" media="print" onload="this.media='all'">
   <link rel="icon" href="favicon.ico" sizes="32x32">
   <link rel="icon" href="images/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=section-stops">
-  <script src="app.js?v=section-stops" defer></script>
+  <link rel="stylesheet" href="styles.css?v=mobile-motion">
+  <script src="app.js?v=mobile-motion" defer></script>
 </head>
 
 <body>
@@ -74,11 +74,11 @@
                   <div class="redesign-table" id="dreamshowz-display">
                   <div class="comparison" style="--before-width:3%">
                     <div class="comparison-layer comparison-after asset-slot">
-                      <img src="images/dreamshowz-after.webp" alt="Redesign with an event stage, showreel and enquiry options" decoding="async">
+                      <img loading="lazy" src="images/dreamshowz-after.webp" alt="Redesign with an event stage, showreel and enquiry options" decoding="async">
                       <div class="asset-fallback" aria-hidden="true"><p>Redesigned website</p></div>
                     </div>
                     <div class="comparison-layer comparison-before asset-slot">
-                      <img src="images/dreamshowz-before.webp" alt="Original homepage with a blue enquiry form above the event gallery" decoding="async">
+                      <img loading="lazy" src="images/dreamshowz-before.webp" alt="Original homepage with a blue enquiry form above the event gallery" decoding="async">
                       <div class="asset-fallback" aria-hidden="true"><p>Original website</p></div>
                     </div>
                     <div class="compare-rule" aria-hidden="true"><span class="compare-grip"></span></div>
@@ -121,14 +121,14 @@
                 <div class="film-screen">
                   <div class="motion-media asset-slot">
                     <img class="motion-poster" src="images/motion-poster.webp" alt="Ideas into code, the opening title of the Cursor study">
-                    <video id="work-motion" data-src="images/motion.mp4" poster="images/motion-poster.webp" controls muted loop playsinline preload="none" aria-label="Cursor independent motion study"></video>
+                    <video id="work-motion" data-src="images/motion.mp4" data-mobile-src="images/motion-mobile.mp4" poster="images/motion-poster.webp" controls muted loop playsinline preload="none" aria-label="Cursor independent motion study"></video>
                     <div class="asset-fallback" aria-hidden="true"><p>Film preview unavailable</p></div>
                   </div>
                   <div class="film-playhead" aria-hidden="true"></div>
                   <div class="film-shots" role="group" aria-label="Jump to a shot">
-                    <button type="button" data-shot="3"><img src="images/cursor-agent.webp" alt=""><span>Agent</span><time>00:03</time></button>
-                    <button type="button" data-shot="11"><img src="images/cursor-tab.webp" alt=""><span>Tab</span><time>00:11</time></button>
-                    <button type="button" data-shot="15"><img src="images/cursor-flow.webp" alt=""><span>Workflow</span><time>00:15</time></button>
+                    <button type="button" data-shot="3"><img loading="lazy" src="images/cursor-agent.webp" alt=""><span>Agent</span><time>00:03</time></button>
+                    <button type="button" data-shot="11"><img loading="lazy" src="images/cursor-tab.webp" alt=""><span>Tab</span><time>00:11</time></button>
+                    <button type="button" data-shot="15"><img loading="lazy" src="images/cursor-flow.webp" alt=""><span>Workflow</span><time>00:15</time></button>
                   </div>
                   <div class="film-credit"><span>Motion design by kinetiq</span><span><time id="film-elapsed">00:00</time> / 00:23</span></div>
                 </div>
@@ -246,6 +246,12 @@
                   <span>↗</span></a></div><button class="explore" id="explore">See what we build <span>↓</span></button>
             </div>
           </div>
+          <div class="mobile-studio" aria-hidden="true">
+            <div class="studio-rails"><i></i><i></i><i></i></div>
+            <div class="studio-sculpture">
+              <div class="studio-mark"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            </div>
+          </div>
           <div class="bottom">
             <div class="motion-tools"><button id="tunnel-motion" type="button" aria-label="Pause background motion"
                 aria-pressed="false" hidden>Ⅱ MOTION ON</button><span class="motion-hint">DESIGN. ENGINEERING.
@@ -258,7 +264,7 @@
   </main>
   <dialog id="redesign-detail" aria-labelledby="detail-title">
     <div class="detail-head"><div><span class="study-type">DreamShowz / Design notes</span><h2 id="detail-title">The first impression</h2></div><button type="button" id="close-redesign" aria-label="Close design notes">Close ×</button></div>
-    <div class="detail-image"><img src="images/dreamshowz-after.webp" alt="DreamShowz homepage redesign"></div>
+    <div class="detail-image"><img loading="lazy" src="images/dreamshowz-after.webp" alt="DreamShowz homepage redesign"></div>
     <p id="detail-note">An event stage and showreel invite visitors to explore the studio’s work before they share their plans.</p>
     <div class="detail-options" role="group" aria-label="Inspect a design decision"><button type="button" data-detail="hero" aria-pressed="true">First impression</button><button type="button" data-detail="enquiry" aria-pressed="false">Enquiry path</button></div>
   </dialog>

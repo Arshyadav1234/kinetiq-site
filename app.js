@@ -1,3 +1,7 @@
+// Small screens, touch-first devices and reduced motion use the document's own scroll.
+const readingLayout = matchMedia('(max-width: 780px), (pointer: coarse), (prefers-reduced-motion: reduce)');
+document.documentElement.classList.toggle('reading-layout', readingLayout.matches);
+
 /* TechText canvas engine adapted from the React Bits source supplied by the user.
    React lifecycle replaced with DOM mounting; rendering, outlines and springs retained. */
 (() => {
@@ -948,11 +952,14 @@ function mountTechText(host) {
       tick(performance.now());
     });
     for (const node of [document.documentElement, document.body]) {
-      if (node) themeObserver.observe(node, { attributes: true, attributeFilter: ['class', 'data-theme'] });
+      if (node) themeObserver.observe(node, { attributes: true, attributeFilter: ['data-theme'] });
     }
     const schemeQuery = window.matchMedia?.('(prefers-color-scheme: dark)');
     schemeQuery?.addEventListener?.('change', wake);
-    if (document.fonts) document.fonts.ready.then(fontsLoaded, fontsLoaded);
+    if (document.fonts) {
+      document.fonts.ready.then(fontsLoaded, fontsLoaded);
+      document.fonts.addEventListener('loadingdone', fontsLoaded);
+    }
 
     document.addEventListener('visibilitychange', wake);
     resize();
@@ -967,6 +974,7 @@ function mountTechText(host) {
       window.removeEventListener('resize', resize);
       intersectionObserver.disconnect();
       themeObserver.disconnect();
+      document.fonts?.removeEventListener('loadingdone', fontsLoaded);
       schemeQuery?.removeEventListener?.('change', wake);
       container.style.cursor = '';
       container.removeEventListener('pointermove', onMove);
@@ -978,7 +986,7 @@ function mountTechText(host) {
     };
 
 }
-const motion = matchMedia('(prefers-reduced-motion: reduce)');
+const motion = readingLayout;
 let cleanups = [];
 function mountHeadings() {
   cleanups.forEach(cleanup => cleanup());
@@ -1050,8 +1058,8 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     const distance=Math.hypot(Math.max(x,innerWidth-x),Math.max(y,innerHeight-y));
     const scale=distance/225*1.1;
     const contours=makeInkMask();
-    return Array.from({length:33},(_,step)=>{
-      const t=step/32,s=Math.max(.00001,scale*Math.pow(t,1.35));
+    return [0, 1].map(t => {
+      const s = Math.max(.00001, scale * t);
       const path=contours.map(points=>points.map(([px,py],i)=>`${i?'L':'M'}${(x+px*s).toFixed(2)} ${(y+py*s).toFixed(2)}`).join(' ')+'Z').join(' ');
       return {clipPath:`path(evenodd, '${path}')`,offset:t};
     });
@@ -1059,7 +1067,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
   toggle.addEventListener('click', async () => {
     if (themeBusy) return;
     const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
-    if (reduced.matches || !document.startViewTransition) { storeTheme(next); return; }
+    if (readingLayout.matches || !document.startViewTransition) { storeTheme(next); return; }
     const rect = toggle.getBoundingClientRect();
     const x = rect.left + rect.width / 2;
     const y = rect.top + rect.height / 2;
@@ -1102,7 +1110,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
   });
 
   // A short, theme-matched entrance. No artificial loading percentage.
-  if (!reduced.matches) {
+  if (!readingLayout.matches) {
     const doors = document.createElement('div');
     doors.className = 'entry-doors';
     doors.setAttribute('aria-hidden', 'true');
@@ -1158,7 +1166,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     function select(index, motion = 'jump') {
       if (selected === index && motion === 'jump') return;
       const from = Math.max(0, selected);
-      const start = getComputedStyle(thumb).clipPath;
+      const start = motion === 'jump' || reduced.matches ? null : getComputedStyle(thumb).clipPath;
       animation?.cancel();
       selected = index;
       buttons.forEach((button, i) => button.setAttribute('aria-current', String(i === index)));
@@ -1185,6 +1193,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
       button.addEventListener('click', event => {
         if (ignoreClick && event.detail) return;
         if (index !== selected) choose(index, 'stretch');
+        else if (readingLayout.matches) navigate(index);
       });
       button.addEventListener('keydown', event => {
         const targets = { ArrowLeft:index-1, ArrowUp:index-1, ArrowRight:index+1, ArrowDown:index+1, Home:0, End:last };
@@ -1325,15 +1334,47 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     // study, side slide, third study. The final .15 leaves room to settle.
     const timeline = { hold: .45, sweepEnd: 1.35, firstEnd: 2.3, secondStart: 2.95, secondEnd: 3.8, thirdStart: 4.45 };
 
+    const studio = document.querySelector('.studio-sculpture');
+    const mobileReveals = portfolio.querySelectorAll('.portfolio-heading, .showcase-window, .brief-desk, .film-screen');
+    let revealObserver;
+    let lastStudioTurn = -1;
+    function syncMobileMotion() {
+      revealObserver?.disconnect();
+      revealObserver = null;
+      mobileReveals.forEach(element => element.classList.remove('entered-view'));
+      studio.style.removeProperty('--turn');
+      lastStudioTurn = -1;
+      if (!readingLayout.matches || reduced.matches) return;
+      revealObserver = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          entry.target.classList.add('entered-view');
+          revealObserver.unobserve(entry.target);
+        }
+      }, { rootMargin:'0px 0px -7% 0px', threshold:.12 });
+      mobileReveals.forEach(element => revealObserver.observe(element));
+    }
+    reduced.addEventListener('change', syncMobileMotion);
+
     function syncLayout() {
-      if (reduced.matches) {
+      root.classList.toggle('reading-layout', readingLayout.matches);
+      if (readingLayout.matches) {
+        destination.before(surface);
         section.after(portfolio);
+        surface.inert = destination.inert = false;
+        surface.style.pointerEvents = '';
+        stage.removeAttribute('style');
         scenes.forEach(scene => { scene.inert = false; scene.removeAttribute('aria-hidden'); });
         portfolio.inert = false;
         portfolio.removeAttribute('aria-hidden');
         pointerX = pointerY = mouseX = mouseY = 0;
-      } else anchor.after(portfolio);
-      if (reduced.matches) comparisonPreview?.cancel();
+        root.classList.remove('work-sweeping', 'sweep-brand-passed', 'sweep-controls-passed');
+      } else {
+        anchor.after(portfolio);
+        active = -1;
+      }
+      syncMobileMotion();
+      if (readingLayout.matches) comparisonPreview?.cancel();
       syncFilm();
     }
     function measure(distance) {
@@ -1344,13 +1385,14 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
       brandCrossing = (brandRect.left + brandRect.width / 2) / width;
       controlsCrossing = (controlsRect.left + controlsRect.width / 2) / width;
       const baseHeight = section.querySelector('.journey-baseline').offsetHeight;
-      unit = reduced.matches ? innerHeight : Math.max(1, (section.offsetHeight - baseHeight) / 5.25);
-      if (!reduced.matches) pixelSwap?.measure();
+      unit = readingLayout.matches ? innerHeight : Math.max(1, (section.offsetHeight - baseHeight) / 5.25);
+      if (!readingLayout.matches) pixelSwap?.measure();
     }
     function loadFilm() {
       if (!video.hasAttribute('src')) {
-        video.preload = 'metadata';
-        video.src = video.dataset.src;
+        video.preload = readingLayout.matches ? 'none' : 'metadata';
+        video.src = matchMedia('(max-width: 780px), (pointer: coarse)').matches
+          ? video.dataset.mobileSrc : video.dataset.src;
       }
     }
     function syncFilm() {
@@ -1359,7 +1401,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
         return;
       }
       loadFilm();
-      if (!videoReady || reduced.matches || userPaused || !video.paused || playPending) return;
+      if (!videoReady || readingLayout.matches || userPaused || !video.paused || playPending) return;
       playPending = true;
       video.play().catch(error => {
         if (error.name !== 'AbortError') userPaused = true;
@@ -1368,25 +1410,40 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
         if (!workVisible || active !== 2 || document.hidden) video.pause();
       });
     }
+    function paintParallax(dt) {
+      const follow = 1 - Math.exp(-dt / 70);
+      mouseX += (pointerX - mouseX) * follow;
+      mouseY += (pointerY - mouseY) * follow;
+      if (Math.abs(pointerX - mouseX) < .01) mouseX = pointerX;
+      if (Math.abs(pointerY - mouseY) < .01) mouseY = pointerY;
+      portfolio.style.setProperty('--mouse-x', `${mouseX.toFixed(2)}px`);
+      portfolio.style.setProperty('--mouse-y', `${mouseY.toFixed(2)}px`);
+    }
     function paint(distance, dt) {
-      if (reduced.matches) {
-        portfolio.inert = false;
-        const rect = portfolio.getBoundingClientRect();
-        const current = scenes.findIndex(scene => scene.getBoundingClientRect().bottom >= innerHeight / 2);
-        const visibleProject = current < 0 ? scenes.length - 1 : current;
-        if (visibleProject === 0 && rect.top < innerHeight && rect.bottom > 0) loadDreamShowz();
-        syncSegment(visibleProject);
-        syncWorkTheme(visibleProject);
-        root.classList.toggle('portfolio-active', rect.top <= 98 && rect.bottom > 98);
-        root.classList.remove('work-sweeping', 'sweep-brand-passed', 'sweep-controls-passed');
-        stage.style.setProperty('--page-two-cut', '0%');
-        sweep.style.setProperty('--sweep-opacity', '0');
-        portfolio.style.setProperty('--mouse-x', '0px');
-        portfolio.style.setProperty('--mouse-y', '0px');
-        const filmRect = video.getBoundingClientRect();
-        workVisible = filmRect.bottom > 0 && filmRect.top < innerHeight;
-        active = 2;
-        syncFilm();
+      if (readingLayout.matches) {
+        if (!reduced.matches) {
+          // Follow the native scroll. At rest and beyond the hero there are no animation frames to sustain.
+          const turn = Math.round(clamp(scrollY / Math.max(1, surface.offsetHeight)) * 48);
+          if (turn !== lastStudioTurn) {
+            studio.style.setProperty('--turn', turn + 'deg');
+            lastStudioTurn = turn;
+          }
+        }
+        const top = portfolio.getBoundingClientRect().top;
+        const eye = innerHeight * .5;
+        const current = scenes.findIndex(scene => scene.getBoundingClientRect().bottom >= eye);
+        active = current < 0 ? scenes.length - 1 : current;
+        const film = video.getBoundingClientRect();
+        const visible = film.bottom > 0 && film.top < innerHeight;
+        if (visible !== workVisible || (visible && !video.hasAttribute('src'))) {
+          workVisible = visible;
+          if (visible) loadFilm();
+          else video.pause();
+        }
+        syncSegment(active);
+        syncWorkTheme(active);
+        root.classList.toggle('work-active', destination.getBoundingClientRect().top <= header.offsetHeight && top > header.offsetHeight);
+        root.classList.toggle('portfolio-active', top <= header.offsetHeight);
         return;
       }
       const d = (distance - foldDistance) / unit;
@@ -1415,13 +1472,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
         const amount = smooth((d - arrivals[i] - j * .065) / .23);
         line.style.setProperty('--line-y', `${(1 - amount) * 115}%`);
       }));
-      const follow = 1 - Math.exp(-dt / 70);
-      mouseX += (pointerX - mouseX) * follow;
-      mouseY += (pointerY - mouseY) * follow;
-      if (Math.abs(pointerX - mouseX) < .01) mouseX = pointerX;
-      if (Math.abs(pointerY - mouseY) < .01) mouseY = pointerY;
-      portfolio.style.setProperty('--mouse-x', `${mouseX.toFixed(2)}px`);
-      portfolio.style.setProperty('--mouse-y', `${mouseY.toFixed(2)}px`);
+      paintParallax(dt);
       root.classList.toggle('portfolio-active', reveal > .5);
       // Never leave focusable controls behind a clipped page or offscreen scene.
       if (reveal > .001) destination.inert = true;
@@ -1543,7 +1594,10 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
       detailChoices.forEach(choice => choice.setAttribute('aria-pressed', String(choice === button)));
     }));
     function goToProject(target) {
-      if (reduced.matches) { scenes[target].scrollIntoView({ block: "center", behavior: "instant" }); return; }
+      if (readingLayout.matches) {
+        scenes[target].scrollIntoView({ block:'start', behavior:reduced.matches ? 'instant' : 'smooth' });
+        return;
+      }
       goToStop(target + 2, false, target);
     }
     previous.addEventListener('click', () => goToProject(Math.max(0, active - 1)));
@@ -1571,7 +1625,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
       if (!approved) headline.focus({ preventScroll:true });
     });
     portfolio.addEventListener('pointermove', event => {
-      if (reduced.matches || !workVisible || event.pointerType !== 'mouse') return;
+      if (readingLayout.matches || !workVisible || event.pointerType !== 'mouse') return;
       const visual = event.target.closest('.work-scene');
       if (!visual) { pointerX = pointerY = 0; wake(); return; }
       const rect = visual.getBoundingClientRect();
@@ -1644,12 +1698,15 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
         video.play().catch(() => { userPaused = true; });
       };
       if (video.readyState >= 1) seek();
-      else video.addEventListener('loadedmetadata', seek, { once:true });
+      else {
+        video.addEventListener('loadedmetadata', seek, { once:true });
+        video.load();
+      }
     }));
     document.addEventListener('visibilitychange', () => { syncFilm(); wake(); });
     syncLayout();
     return {
-      paint, measure, syncLayout,
+      paint, paintParallax, measure, syncLayout,
       selectProject(index) {
         requestedProject = index;
         if (index !== null) syncSegment(index);
@@ -1708,7 +1765,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     surface.style.pointerEvents = p > .85 ? 'none' : '';
   }
   function paint(p, dt = 16.67) {
-    paintIntro(Math.min(1, p));
+    if (!readingLayout.matches) paintIntro(Math.min(1, p));
     workChapter.paint(p * travel, dt);
   }
   function stopY() {
@@ -1719,8 +1776,8 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
   }
   function goToStop(index, instant = false, selectedProject = null) {
     const next = Math.max(0, Math.min(stops.length - 1, index));
-    if (reduced.matches) {
-      scrollTo({ top:sectionTop + stops[next] * travel, behavior:'instant' });
+    if (readingLayout.matches) {
+      (next === 0 ? surface : destination).scrollIntoView({ block:'start', behavior:reduced.matches ? 'instant' : 'smooth' });
       return;
     }
     if (next === currentStop && (transition || progress === stops[next])) return;
@@ -1738,14 +1795,15 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
       start:performance.now(),
       duration:forwardSweep || reverseSweep ? 1050 : 760
     };
-    if (instant) progress = to;
+    if (instant) { progress = to; paint(progress); }
     schedule();
   }
   function animate(now) {
     frame = 0;
     const dt = lastFrame ? Math.min(64, now - lastFrame) : 16.67;
     lastFrame = now;
-    if (reduced.matches) progress = readProgress();
+    if (readingLayout.matches) { workChapter.paint(0, dt); return; }
+    const wasTransitioning = Boolean(transition);
     if (transition) {
       const t = Math.min(1, Math.max(0, (now - transition.start) / transition.duration));
       const eased = t * t * (3 - 2 * t);
@@ -1755,7 +1813,8 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
         transition = null;
       }
     }
-    paint(progress, dt);
+    if (wasTransitioning) paint(progress, dt);
+    else workChapter.paintParallax(dt);
     if (transition || workChapter.isSettling()) frame = requestAnimationFrame(animate);
     else lastFrame = 0;
   }
@@ -1792,22 +1851,22 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     return delta > 0 ? pane.scrollTop + pane.clientHeight < pane.scrollHeight - 1 : pane.scrollTop > 0;
   }
   const dialogOpen = () => Boolean(document.querySelector('dialog[open]'));
-  window.addEventListener('wheel', event => {
+  function onWheel(event) {
     if (reduced.matches || event.ctrlKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY) || dialogOpen()) return;
     const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1);
     const nested = canScrollInside(event.target, delta);
     if (!nested && event.cancelable) event.preventDefault();
     collectWheel(delta, performance.now(), nested);
-  }, { passive:false });
+  }
 
   let touch = null;
   window.addEventListener('touchstart', event => {
     touch = null;
-    if (reduced.matches || dialogOpen() || event.touches.length !== 1 || event.target.closest('input, textarea, video, .work-directory')) return;
+    if (readingLayout.matches || dialogOpen() || event.touches.length !== 1 || event.target.closest('input, textarea, video, .work-directory')) return;
     const point = event.touches[0];
     touch = { x:point.clientX, y:point.clientY, start:performance.now(), used:false, nested:false };
   }, { passive:true });
-  window.addEventListener('touchmove', event => {
+  function onTouchMove(event) {
     if (!touch || event.touches.length !== 1 || reduced.matches) return;
     const point = event.touches[0];
     const delta = touch.y - point.clientY;
@@ -1820,11 +1879,21 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
       touch.used = true;
       goToStop(currentStop + Math.sign(delta));
     }
-  }, { passive:false });
+  }
+  function syncGestureListeners() {
+    window.removeEventListener('wheel', onWheel);
+    window.removeEventListener('touchmove', onTouchMove);
+    touch = null;
+    if (!readingLayout.matches) {
+      window.addEventListener('wheel', onWheel, { passive:false });
+      window.addEventListener('touchmove', onTouchMove, { passive:false });
+    }
+  }
+  syncGestureListeners();
   for (const type of ['touchend','touchcancel']) window.addEventListener(type, () => { touch = null; }, { passive:true });
 
   window.addEventListener('keydown', event => {
-    if (reduced.matches || dialogOpen() || event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey) return;
+    if (readingLayout.matches || dialogOpen() || event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey) return;
     if (event.target.closest('button, a, summary, input, textarea, select, video, [contenteditable]')) return;
     const direction = { ArrowDown:1, PageDown:1, ArrowUp:-1, PageUp:-1 }[event.key] ?? (event.key === ' ' ? (event.shiftKey ? -1 : 1) : 0);
     if (!direction && event.key !== 'Home' && event.key !== 'End') return;
@@ -1836,7 +1905,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
   });
 
   window.addEventListener('scroll', () => {
-    if (reduced.matches) { schedule(); return; }
+    if (readingLayout.matches) { schedule(); return; }
     if (dialogOpen()) return;
     // Keep momentum and compositor scroll from leaving a card half revealed.
     const delta = scrollY - stopY();
@@ -1845,6 +1914,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     collectWheel(delta, performance.now());
   }, { passive:true });
   window.addEventListener('resize', () => {
+    if (readingLayout.matches) { schedule(); return; }
     const oldWorkDistance = stops[2] - 1;
     measure();
     if (!reduced.matches) {
@@ -1854,12 +1924,13 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
         transition.from = resizeProgress(transition.from);
         transition.to = resizeProgress(transition.to);
         progress = resizeProgress(progress);
-      } else progress = stops[currentStop];
+      } else { progress = stops[currentStop]; paint(progress); }
       syncScrollPosition();
     }
     schedule();
   }, { passive:true });
-  reduced.addEventListener('change', () => {
+  readingLayout.addEventListener('change', () => {
+    syncGestureListeners();
     workChapter.syncLayout();
     restoreStop();
   });
@@ -1869,15 +1940,15 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     workChapter.selectProject(null);
     const restored = readProgress();
     currentStop = stops.reduce((nearest, stop, i) => Math.abs(stop - restored) < Math.abs(stops[nearest] - restored) ? i : nearest, 0);
-    progress = reduced.matches ? restored : stops[currentStop];
-    if (!reduced.matches) syncScrollPosition();
+    progress = readingLayout.matches ? restored : stops[currentStop];
+    if (!readingLayout.matches) syncScrollPosition();
     paint(progress);
   }
   window.addEventListener('pageshow', restoreStop);
   restoreStop();
   for (const id of ['explore', 'scroll']) document.getElementById(id).addEventListener('click', () => goToStop(1));
   document.querySelector('.brand').addEventListener('click', event => {
-    if (reduced.matches || event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) return;
+    if (readingLayout.matches || event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) return;
     event.preventDefault();
     goToStop(0);
   });
@@ -2180,7 +2251,7 @@ const link = gl => {
       const s = settingsRef.current;
       const width = canvas.width;
       const height = canvas.height;
-      const ratio = width / Math.max(1, container.clientWidth);
+      const ratio = renderRatio;
       const minSide = Math.min(width, height);
       const flow = s.flow;
       const span = 3.4;
@@ -2232,7 +2303,7 @@ const link = gl => {
 
     const frame = now => {
       raf = 0;
-      if (!visible || document.hidden) return;
+      if (!visible || document.hidden || readingLayout.matches) return;
       const s = settingsRef.current;
       if (!reduce && last && now-last < 32) { raf=requestAnimationFrame(frame); return; }
       const dt = last ? clamp((now - last) / 1000, 0.0005, 0.05) : 1 / 60;
@@ -2259,14 +2330,18 @@ const link = gl => {
     };
 
     const wake = () => {
-      if (!raf && visible && !document.hidden) raf = requestAnimationFrame(frame);
+      if (!raf && visible && !document.hidden && !readingLayout.matches) raf = requestAnimationFrame(frame);
     };
 
+    let renderRatio = 1;
     const resize = () => {
+      if (readingLayout.matches) return;
       const s = settingsRef.current;
       const width = Math.max(1, container.clientWidth);
       const height = Math.max(1, container.clientHeight);
-      const ratio = Math.min(s.dpr || window.devicePixelRatio || 1, 2);
+      // The fine detail lives in the headline. Bound the background fragment workload on large displays.
+      const ratio = Math.min(s.dpr, Math.sqrt(600000 / (width * height)));
+      renderRatio = ratio;
       canvas.width = Math.max(1, Math.round(width * ratio));
       canvas.height = Math.max(1, Math.round(height * ratio));
       render();
@@ -2336,7 +2411,7 @@ const link = gl => {
         resize();
         return;
       }
-      if (!raf) render();
+      if (!raf && !readingLayout.matches) render();
       wake();
     };
 
@@ -2383,7 +2458,14 @@ const link = gl => {
     };
 
   }
-  mountTunnel();
+  let tunnelMounted = false;
+  function syncTunnel() {
+    if (readingLayout.matches) return;
+    if (!tunnelMounted) tunnelMounted = Boolean(mountTunnel());
+    else wakeRef.current?.();
+  }
+  readingLayout.addEventListener('change', syncTunnel);
+  syncTunnel();
 })();
 
 // Keep one service expanded; native details/summary provides keyboard interaction.
