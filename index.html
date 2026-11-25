@@ -28,8 +28,8 @@
     rel="stylesheet" media="print" onload="this.media='all'">
   <link rel="icon" href="favicon.ico" sizes="32x32">
   <link rel="icon" href="images/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=site-review">
-  <script src="app.js?v=site-review" defer></script>
+  <link rel="stylesheet" href="styles.css?v=mobile-faq">
+  <script src="app.js?v=mobile-faq" defer></script>
   <script>
     if (location.protocol === 'https:') {
       window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
@@ -174,8 +174,8 @@
                 </div>
                 <div class="film-screen">
                   <div class="motion-media asset-slot">
-                    <img class="motion-poster" src="images/motion-poster.webp" alt="Ideas into code, the opening title of the Cursor study">
-                    <video id="work-motion" data-src="images/motion.mp4" data-mobile-src="images/motion-mobile.mp4" poster="images/motion-poster.webp" controls muted loop playsinline preload="none" hidden aria-label="Cursor independent motion study"></video>
+                    <img class="motion-poster" src="images/motion-poster.webp" alt="Ideas into code, the opening title of the Cursor study" loading="lazy" decoding="async">
+                    <video id="work-motion" data-src="images/motion.mp4" data-mobile-src="images/motion-mobile.mp4" controls muted loop playsinline preload="none" hidden aria-label="Cursor independent motion study"></video>
                     <div class="asset-fallback" aria-hidden="true"><p>Film preview unavailable</p></div>
                   </div>
                   <div class="film-playhead" aria-hidden="true"></div>
@@ -343,18 +343,19 @@
       <div class="inquiry-inner">
         <div class="inquiry-intro">
           <h2 id="inquiry-title">What are you<br> building?</h2>
-          <p>Tell us what you’re working on and what you want it to do.</p>
+          <p>Tell us your idea. Custom builds are welcome.</p>
         </div>
         <form class="inquiry-editor" id="inquiry-form" action="/api/inquiry" method="post" aria-labelledby="inquiry-brief-title">
           <h3 id="inquiry-brief-title">Project brief</h3>
           <fieldset id="inquiry-services" tabindex="-1">
-            <legend>I need:</legend>
+            <legend>I need (optional)</legend>
             <div class="inquiry-chips">
               <button type="button" data-service="website" aria-pressed="false">Website</button>
               <button type="button" data-service="automation" aria-pressed="false">Automation</button>
               <button type="button" data-service="ai-agent" aria-pressed="false">AI agent</button>
               <button type="button" data-service="app" aria-pressed="false">App</button>
               <button type="button" data-service="motion" aria-pressed="false">Motion</button>
+              <button type="button" data-service="other" aria-pressed="false">Something else</button>
             </div>
           </fieldset>
           <div class="inquiry-fields">
@@ -378,7 +379,7 @@
               <a id="inquiry-whatsapp" target="_blank" rel="noopener noreferrer" hidden>WhatsApp</a>
               <a id="inquiry-email" hidden>Email</a>
             </div>
-            <p id="inquiry-draft-help">Tell us what you need and how to reach you. For a DM, you can copy your draft.</p>
+            <p id="inquiry-draft-help">You can also copy your brief for a DM.</p>
             <p id="inquiry-submit-status" role="status"></p>
             <p id="inquiry-status" role="status"></p>
           </div>

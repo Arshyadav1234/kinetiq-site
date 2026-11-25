@@ -1,6 +1,6 @@
 const services = new Map([
   ['website', 'Website'], ['automation', 'Automation'], ['ai-agent', 'AI agent'],
-  ['app', 'App'], ['motion', 'Motion']
+  ['app', 'App'], ['motion', 'Motion'], ['other', 'Something else']
 ]);
 const emailPattern = /^[^\s@<>,;:"()[\]\\]+@(?:[a-z0-9-]+\.)+[a-z0-9-]+$/i;
 const submissionPattern = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;

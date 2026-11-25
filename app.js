@@ -1335,6 +1335,7 @@ mountHeadings();
     const video = document.getElementById('work-motion');
     const shots = [...portfolio.querySelectorAll('[data-shot]')];
     const filmSlot = video.parentElement;
+    const poster = filmSlot.querySelector('.motion-poster');
     let unit = innerHeight, foldDistance = 1, width = innerWidth;
     let active = -1, workVisible = false, pointerX = 0, pointerY = 0, mouseX = 0, mouseY = 0;
     let videoReady = false, userPaused = false, playPending = false;
@@ -1372,44 +1373,6 @@ mountHeadings();
     }
     reduced.addEventListener('change', syncMobileMotion);
 
-    // Keep native panning throughout the gesture. A deliberate release helps the
-    // browser reach the adjacent snap point even on devices with little inertia.
-    const mobileStops = [surface, destination, portfolio, ...scenes.slice(1), faq, contact];
-    let swipeStart = null;
-    window.addEventListener('touchstart', event => {
-      swipeStart = null;
-      if (!readingLayout.matches || reduced.matches || event.touches.length !== 1 ||
-          event.target.closest('dialog,input,textarea,video,.work-directory,.dreamshowz-live')) return;
-      const {clientX:x, clientY:y} = event.touches[0];
-      const offset = header.offsetHeight;
-      const end = document.documentElement.scrollHeight - innerHeight;
-      const stops = mobileStops.map(el => Math.min(end, Math.max(0, scrollY +
-        el.getBoundingClientRect().top - offset - (parseFloat(getComputedStyle(el).scrollMarginTop) || 0))));
-      let index = 0;
-      while (index + 1 < stops.length && stops[index + 1] <= scrollY + 6) index++;
-      swipeStart = {x,y,at:event.timeStamp,index,stops,offset,scrollTop:scrollY};
-    }, {passive:true});
-    window.addEventListener('touchcancel', () => { swipeStart = null; }, {passive:true});
-    window.addEventListener('touchend', event => {
-      const start = swipeStart;
-      swipeStart = null;
-      if (!start || event.touches.length || !readingLayout.matches || reduced.matches) return;
-      const point = event.changedTouches[0];
-      const dy = start.y - point.clientY;
-      const distance = Math.abs(dy);
-      if (distance < 58 || distance < Math.abs(start.x - point.clientX) * 1.4 ||
-          distance / Math.max(1, event.timeStamp - start.at) < .34) return;
-      const next = start.index + Math.sign(dy);
-      if (next < 0 || next >= mobileStops.length) return;
-      // Tall chapters (for instance an open service or live embed) still have
-      // readable content between stops. Allow normal scrolling through it.
-      const room = innerHeight - start.offset;
-      if (start.index === 1 && dy > 0 && start.stops[next] - start.scrollTop > room + 6) return;
-      if (dy > 0 && start.stops[next] - scrollY > room + 36) return;
-      if (dy < 0 && scrollY > start.stops[start.index] + 36) return;
-      requestAnimationFrame(() => scrollTo({top:start.stops[next],behavior:'smooth'}));
-    }, {passive:true});
-
     function syncLayout() {
       if (readingLayout.matches) {
         section.after(portfolio);
@@ -1443,7 +1406,8 @@ mountHeadings();
     }
     function loadFilm() {
       if (!video.hasAttribute('src')) {
-        video.preload = 'metadata';
+        video.preload = readingLayout.matches ? 'none' : 'metadata';
+        video.poster = poster.currentSrc || poster.src;
         video.src = matchMedia('(max-width: 780px), (pointer: coarse)').matches
           ? video.dataset.mobileSrc : video.dataset.src;
         video.hidden = false;
@@ -1475,7 +1439,7 @@ mountHeadings();
     }
     function paint(distance, dt, sweepY = null) {
       if (readingLayout.matches) {
-        if (!reduced.matches) {
+        if (!reduced.matches && (lastStudioTurn !== 48 || scrollY <= innerHeight)) {
           // Follow the native scroll. At rest and beyond the hero there are no animation frames to sustain.
           const turn = Math.round(clamp(scrollY / Math.max(1, surface.offsetHeight)) * 48);
           if (turn !== lastStudioTurn) {
@@ -1483,19 +1447,24 @@ mountHeadings();
             lastStudioTurn = turn;
           }
         }
+        const viewport = innerHeight;
         const { top, bottom } = portfolio.getBoundingClientRect();
-        const eye = innerHeight * .5;
-        const current = scenes.findIndex(scene => scene.getBoundingClientRect().bottom >= eye);
-        active = current < 0 ? scenes.length - 1 : current;
-        const film = filmSlot.getBoundingClientRect();
-        const visible = film.bottom > 0 && film.top < innerHeight;
+        const onScreen = top < viewport && bottom > 0;
+        let visible = false;
+        if (onScreen) {
+          const eye = viewport * .5;
+          const current = scenes.findIndex(scene => scene.getBoundingClientRect().bottom >= eye);
+          active = current < 0 ? scenes.length - 1 : current;
+          const film = filmSlot.getBoundingClientRect();
+          visible = film.bottom > 0 && film.top < viewport;
+          syncSegment(active);
+          syncWorkTheme(active);
+        }
         if (visible !== workVisible || (visible && !video.hasAttribute('src'))) {
           workVisible = visible;
           if (visible) loadFilm();
           else video.pause();
         }
-        syncSegment(active);
-        syncWorkTheme(active);
         root.classList.toggle('work-active', destination.getBoundingClientRect().top <= header.offsetHeight && top > header.offsetHeight);
         root.classList.toggle('portfolio-active', top <= header.offsetHeight + 1 && bottom > header.offsetHeight + 1);
         return;
@@ -1719,7 +1688,6 @@ mountHeadings();
       image.addEventListener('error', failed);
       if (image.complete) image.naturalWidth ? loaded() : failed();
     });
-    const poster = filmSlot.querySelector('.motion-poster');
     let posterFailed = false, filmFailed = false;
     function syncFilmFallback() {
       const missing = posterFailed && filmFailed;
@@ -1787,6 +1755,7 @@ mountHeadings();
       },
       projectPositions: () => openings.map(opening => (foldDistance + opening * unit) / foldDistance),
       sweepStart: () => (foldDistance + timeline.hold * unit) / foldDistance,
+      sweepEnd: () => (foldDistance + timeline.sweepEnd * unit) / foldDistance,
       isSettling: () => Math.abs(pointerX - mouseX) > .01 || Math.abs(pointerY - mouseY) > .01
     };
   }
@@ -1810,6 +1779,7 @@ mountHeadings();
     ['#research-title', 3], ['#motion-title', 4], ['#faq', 5], ['#contact', 6]
   ]);
   let serviceHeight = 0;
+  let stageHeight = 0;
   let maxProgress = 1;
   let frame = 0;
   let sectionTop = 0;
@@ -1817,11 +1787,12 @@ mountHeadings();
   let stops = [0, 1];
   let currentStop = 0;
   let readingChapter = 0;
-  let footerReached = false;
   let faqExit = null;
   let transition = null;
   let progress = 0;
   let lastFrame = 0;
+  let commandedY = null;
+  let nativeScroll = false;
   function readProgress() {
     const offset = scrollY - sectionTop;
     return Math.max(0, Math.min(maxProgress, offset <= travel + serviceHeight
@@ -1830,7 +1801,7 @@ mountHeadings();
   }
   function measure() {
     sectionTop = section.getBoundingClientRect().top + scrollY;
-    const stageHeight = readingLayout.matches ? innerHeight : stage.offsetHeight;
+    stageHeight = readingLayout.matches ? innerHeight : stage.offsetHeight;
     travel = Math.max(1, baseline.offsetHeight - stageHeight);
     serviceHeight = readingLayout.matches ? 0 : destination.offsetHeight;
     maxProgress = Math.max(1, (section.offsetHeight - stageHeight - serviceHeight) / travel);
@@ -1869,32 +1840,35 @@ mountHeadings();
       { duration:400, easing:'cubic-bezier(.23,1,.32,1)' }
     );
   }
-  function paint(p, dt = 16.67) {
-    section.inert = isFooterStop();
-    faq.inert = contact.inert = !readingLayout.matches && !isFooterStop();
-    if (!readingLayout.matches) paintIntro(Math.min(1, p));
-    workChapter.paint(p * travel, dt, transition?.sweepY);
+  function paint(p, dt = 16.67, sweepY = null) {
+    if (!readingLayout.matches) {
+      section.inert = isFooterStop();
+      faq.inert = contact.inert = !isFooterStop();
+      paintIntro(Math.min(1, p));
+    }
+    workChapter.paint(p * travel, dt, sweepY);
     if (isFooterStop()) root.classList.remove('work-active');
     if (readingLayout.matches) {
       const viewportMarker = innerHeight * .33;
-      const chapter = chapters.reduce((active, chapter, i) =>
-        chapter.getBoundingClientRect().top <= viewportMarker ? i : active, 0);
+      let chapter = readingChapter;
+      while (chapter > 0 && chapters[chapter].getBoundingClientRect().top > viewportMarker) chapter--;
+      while (chapter + 1 < chapters.length && chapters[chapter + 1].getBoundingClientRect().top <= viewportMarker) chapter++;
       if (chapter === faqStop && readingChapter === faqStop - 1 && !reduced.matches) {
-        chapters[faqStop - 1].animate(
-          [{ filter:'blur(0)' }, { filter:'blur(4px)' }, { filter:'blur(0)' }],
-          { duration:500, easing:'ease-in-out' }
-        );
         revealFaq();
       }
       readingChapter = chapter;
     }
   }
-  function stopY() {
-    if (isFooterStop()) return Math.round(chapters[currentStop].getBoundingClientRect().top + scrollY);
-    return Math.round(sectionTop + stops[currentStop] * travel + (currentStop > 1 ? serviceHeight : 0));
+  function stopY(index = currentStop) {
+    if (index >= faqStop) return Math.round(chapters[index].getBoundingClientRect().top + scrollY);
+    return Math.round(sectionTop + stops[index] * travel + (index > 1 ? serviceHeight : 0));
+  }
+  function moveScroll(top) {
+    scrollTo({ top, behavior:'instant' });
+    commandedY = scrollY;
   }
   function syncScrollPosition() {
-    if (Math.abs(scrollY - stopY()) > 1) scrollTo({ top:stopY(), behavior:'instant' });
+    if (Math.abs(scrollY - stopY()) > 1) moveScroll(stopY());
   }
   function clearFold() {
     root.classList.remove('hero-folding');
@@ -1904,65 +1878,82 @@ mountHeadings();
     faqExit?.cancel();
     faqExit = null;
   }
+  function foldAt(p) {
+    if (p <= 0 || p >= 1) { clearFold(); return; }
+    root.classList.add('hero-folding');
+    destination.style.setProperty('--fold-offset', `${scrollY - sectionTop - travel}px`);
+  }
+  function servicesEnd() {
+    return stopY(1) + Math.max(0, serviceHeight - stageHeight);
+  }
+  function scrubProgress() {
+    const start = servicesEnd();
+    const end = stopY(2);
+    if (scrollY <= start || scrollY >= end) return readProgress();
+    const sweepStart = workChapter.sweepStart();
+    return sweepStart + (stops[2] - sweepStart) * (scrollY - start) / (end - start);
+  }
+  function sweepAt(p) {
+    if (p < 1 || p >= workChapter.sweepEnd()) return null;
+    const anchor = servicesEnd();
+    return scrollY > anchor + 1 ? anchor : null;
+  }
+  function syncNativePosition(dt) {
+    progress = scrubProgress();
+    currentStop = scrollY >= stopY(contactStop) - 1 ? contactStop : scrollY >= stopY(faqStop) - 1 ? faqStop :
+      stops.slice(0, faqStop).reduce((closest, stop, index) =>
+        Math.abs(stop - progress) < Math.abs(stops[closest] - progress) ? index : closest, 0);
+    foldAt(progress);
+    paint(progress, dt, sweepAt(progress));
+  }
   function goToStop(index, instant = false, selectedProject = null) {
     const next = Math.max(0, Math.min(stops.length - 1, index));
     if (readingLayout.matches) {
       chapters[next].scrollIntoView({ block:'start', behavior:reduced.matches || instant ? 'instant' : 'smooth' });
       return;
     }
-    if (next === faqStop && currentStop === faqStop - 1 && !instant && !transition) {
-      if (faqExit) return;
-      const exit = stage.animate([{ filter:'blur(0)' }, { filter:'blur(9px)' }],
-        { duration:320, easing:'ease-in-out', fill:'forwards' });
-      faqExit = exit;
-      exit.finished.then(() => {
-        if (faqExit !== exit) return;
-        goToStop(next, true);
-        revealFaq();
-      }, () => {});
-      return;
-    }
+    const previous = currentStop;
+    const blurFaq = next === faqStop && previous === faqStop - 1 && !instant && !transition;
     cancelFaqExit();
-    if (next === currentStop && next < faqStop && (transition || progress === stops[next])) return;
-    if (next >= faqStop || (isFooterStop() && next !== 0)) {
-      const entering = next >= faqStop;
-      currentStop = next;
-      footerReached = false;
-      transition = null;
-      clearFold();
-      progress = stops[next];
-      paint(progress);
-      scrollTo({ top:stopY(), behavior:entering && !instant ? 'smooth' : 'instant' });
-      if (entering && instant) footerReached = true;
-      return;
-    }
-    const fold = !instant && (next === 0 || (next === 1 && progress < 1));
-    const from = fold ? Math.min(progress, 1) : progress;
+    if (next === previous && next < faqStop && (transition || Math.abs(scrollY - stopY(next)) <= 1)) return;
+    const fromY = scrollY;
+    const toY = stopY(next);
+    const freeTravel = next >= faqStop || previous >= faqStop || (next === 0 && progress > 1);
+    const from = progress;
     const to = stops[next];
     const sweepStart = workChapter.sweepStart();
-    const forwardSweep = !instant && currentStop === 1 && from <= sweepStart && next >= 2;
-    const reverseSweep = !instant && from > sweepStart && from <= stops[2] && next === 1;
-    const sweepY = forwardSweep ? scrollY : reverseSweep ? sectionTop + travel : null;
+    const forwardSweep = !instant && !freeTravel && previous === 1 && from <= sweepStart && next >= 2;
+    const reverseSweep = !instant && !freeTravel && from > sweepStart && from <= stops[2] && next === 1;
+    const sweepY = forwardSweep ? fromY : reverseSweep ? stopY(1) : null;
     workChapter.selectProject(forwardSweep ? null : selectedProject);
     currentStop = next;
-    if (!fold) {
+    nativeScroll = false;
+    if (instant || Math.abs(toY - fromY) <= 1) {
+      transition = null;
       clearFold();
-      if (next === 1 && !instant && !reverseSweep) scrollTo({ top:stopY(), behavior:'smooth' });
-      else syncScrollPosition();
-    } else {
-      section.inert = false;
-      root.classList.add('hero-folding');
+      moveScroll(toY);
+      progress = to;
+      paint(progress);
+      return;
     }
-    transition = instant ? null : {
+    if (blurFaq) {
+      faqExit = stage.animate([{ filter:'blur(0)' }, { filter:'blur(8px)' }],
+        { duration:420, easing:'ease-in-out', fill:'forwards' });
+    }
+    transition = {
       from:forwardSweep ? sweepStart : from,
       to:forwardSweep ? stops[2] : reverseSweep ? sweepStart : to,
-      fold,
+      fromY,
+      toY:forwardSweep ? stopY(2) : toY,
+      freeTravel,
       sweepY,
       start:performance.now(),
-      duration:forwardSweep || reverseSweep ? 1050 : 760
+      duration:forwardSweep || reverseSweep ? 1050 : 760,
+      blurFaq
     };
-    if (instant) { progress = to; paint(progress); }
-    else if (sweepY !== null) { progress = transition.from; paint(progress); }
+    // Release the destination's controls before a contact CTA moves focus.
+    if (next >= faqStop) faq.inert = contact.inert = false;
+    else if (sweepY !== null) { progress = transition.from; paint(progress, 16.67, sweepY); }
     schedule();
   }
   function animate(now) {
@@ -1970,26 +1961,33 @@ mountHeadings();
     const dt = lastFrame ? Math.min(64, now - lastFrame) : 16.67;
     lastFrame = now;
     if (readingLayout.matches) { paint(0, dt); return; }
+    if (nativeScroll) {
+      nativeScroll = false;
+      syncNativePosition(dt);
+    }
     const wasTransitioning = Boolean(transition);
+    let focusAfter;
     if (transition) {
       const t = Math.min(1, Math.max(0, (now - transition.start) / transition.duration));
       const eased = t * t * (3 - 2 * t);
-      progress = transition.from + (transition.to - transition.from) * eased;
-      if (transition.fold) {
-        const top = sectionTop + progress * travel;
-        destination.style.setProperty('--fold-offset', `${top - sectionTop - travel}px`);
-        scrollTo({ top, behavior:'instant' });
-      }
+      moveScroll(transition.fromY + (transition.toY - transition.fromY) * eased);
+      progress = transition.freeTravel ? scrubProgress() : transition.from + (transition.to - transition.from) * eased;
+      foldAt(progress);
       if (t === 1 && transition.sweepY !== null && currentStop > 2) {
-        transition = { from:progress, to:stops[currentStop], fold:false, sweepY:null, start:now, duration:760 };
+        transition = { from:progress, to:stops[currentStop], fromY:scrollY, toY:stopY(), sweepY:null, start:now, duration:760 };
       } else if (t === 1) {
+        const reveal = transition.blurFaq;
+        focusAfter = transition.focus;
         progress = stops[currentStop];
         transition = null;
+        cancelFaqExit();
         clearFold();
+        if (reveal) revealFaq();
       }
     }
-    if (wasTransitioning) paint(progress, dt);
+    if (wasTransitioning) paint(progress, dt, transition ? transition.sweepY ?? sweepAt(progress) : null);
     else workChapter.paintParallax(dt);
+    focusAfter?.focus({ preventScroll:true });
     if (transition || workChapter.isSettling()) frame = requestAnimationFrame(animate);
     else lastFrame = 0;
   }
@@ -2039,7 +2037,7 @@ mountHeadings();
   function onWheel(event) {
     if (event.defaultPrevented || reduced.matches || event.ctrlKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY) || dialogOpen()) return;
     const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1);
-    const documentScroll = !transition?.fold &&
+    const documentScroll = !transition &&
       (canScrollServices(delta) || canScrollFooter(delta));
     const nested = documentScroll || canScrollInside(event.target, delta);
     if (!nested && event.cancelable) event.preventDefault();
@@ -2054,7 +2052,7 @@ mountHeadings();
     touch = { x:point.clientX, y:point.clientY, start:performance.now(), used:false, nested:false };
   }, { passive:true });
   function onTouchMove(event) {
-    if (!touch || event.touches.length !== 1 || reduced.matches) return;
+    if (!touch || event.defaultPrevented || event.touches.length !== 1 || reduced.matches) return;
     const point = event.touches[0];
     const delta = touch.y - point.clientY;
     if (Math.abs(delta) < 7 || Math.abs(point.clientX - touch.x) > Math.abs(delta)) return;
@@ -2098,73 +2096,45 @@ mountHeadings();
 
   window.addEventListener('scroll', () => {
     if (readingLayout.matches) { schedule(); return; }
-    if (dialogOpen() || transition?.fold) return;
-    if (isFooterStop()) {
-      if (!footerReached) footerReached = Math.abs(scrollY - stopY()) <= 2;
-      else if (faq.getBoundingClientRect().top > 2) restoreStop();
-      else currentStop = contact.getBoundingClientRect().top <= 2 ? contactStop : faqStop;
-      return;
-    }
-    if (isServicesStop()) {
-      if (transition) return;
-      if (scrollY < stopY() - 1) syncScrollPosition();
-      const bottom = destination.getBoundingClientRect().bottom;
-      if (bottom < innerHeight - 2 && scrollY > stopY() + 1) {
-        scrollBy({ top:Math.max(bottom - innerHeight, stopY() - scrollY), behavior:'instant' });
-      }
-      return;
-    }
-    // Keep momentum and compositor scroll from leaving a card half revealed.
-    const delta = scrollY - stopY();
-    if (Math.abs(delta) <= 1) return;
-    syncScrollPosition();
+    if (scrollY === commandedY || dialogOpen()) return;
+    // A native thumb drag or track click owns the document position.
+    commandedY = null;
+    if (transition) workChapter.selectProject(null);
+    transition = null;
+    cancelFaqExit();
+    nativeScroll = true;
+    schedule();
   }, { passive:true });
-  window.addEventListener('scrollend', () => {
-    if (!isFooterStop() || dialogOpen()) return;
-    // A scrollbar drag can interrupt the smooth trip to the footer.
-    if (faq.getBoundingClientRect().top > 2) restoreStop();
-    else {
-      footerReached = true;
-      currentStop = contact.getBoundingClientRect().top <= 2 ? contactStop : faqStop;
-    }
-  });
   window.addEventListener('resize', () => {
     if (readingLayout.matches) { schedule(); return; }
-    const oldWorkDistance = stops[2] - 1;
+    const atStop = Math.abs(scrollY - stopY()) <= 2;
     measure();
-    if (!reduced.matches) {
-      if (transition) {
-        const ratio = (stops[2] - 1) / oldWorkDistance;
-        const resizeProgress = value => value <= 1 ? value : 1 + (value - 1) * ratio;
-        transition.from = resizeProgress(transition.from);
-        transition.to = resizeProgress(transition.to);
-        progress = resizeProgress(progress);
-      } else { progress = stops[currentStop]; paint(progress); }
-      if (!transition?.fold && !isFooterStop()) syncScrollPosition();
-    }
+    if (transition) transition.toY = stopY(transition.sweepY !== null && currentStop > 2 ? 2 : currentStop);
+    else if (atStop && !isFooterStop()) syncScrollPosition();
+    nativeScroll = !transition;
     schedule();
   }, { passive:true });
   readingLayout.addEventListener('change', () => {
     const chapter = readingLayout.matches ? currentStop : readingChapter;
     syncGestureListeners();
     workChapter.syncLayout();
+    if (readingLayout.matches) section.inert = faq.inert = contact.inert = false;
     measure();
     jumpToChapter(chapter);
   });
   function jumpToChapter(chapter) {
     cancelFaqExit();
     transition = null;
+    nativeScroll = false;
     clearFold();
     workChapter.selectProject(null);
     currentStop = Math.min(chapter, stops.length - 1);
     progress = stops[currentStop];
-    footerReached = false;
     paint(progress);
     if (readingLayout.matches) {
       chapters[chapter].scrollIntoView({ block:'start', behavior:'instant' });
       paint(progress);
     } else syncScrollPosition();
-    if (isFooterStop()) footerReached = Math.abs(scrollY - stopY()) <= 2;
   }
   function restoreStop(useFragment = false) {
     measure();
@@ -2174,23 +2144,17 @@ mountHeadings();
     transition = null;
     clearFold();
     if (readingLayout.matches) { paint(0); return; }
-    if (faq.getBoundingClientRect().top <= 2) {
-      currentStop = contact.getBoundingClientRect().top <= 2 ? contactStop : faqStop;
-      progress = stops[currentStop];
-      footerReached = true;
-      paint(progress);
-      return;
-    }
-    const restored = readProgress();
-    const nearest = stops.slice(0, faqStop).reduce((best, stop, i) =>
-      Math.abs(stop - restored) < Math.abs(stops[best] - restored) ? i : best, 0);
-    jumpToChapter(nearest);
+    syncNativePosition();
   }
   new ResizeObserver(() => {
     if (readingLayout.matches) { schedule(); return; }
     if (destination.offsetHeight === serviceHeight) return;
+    const atStop = Math.abs(scrollY - stopY()) <= 2;
     measure();
-    if (currentStop > 1 && !isFooterStop()) syncScrollPosition();
+    if (transition) transition.toY = stopY(transition.sweepY !== null && currentStop > 2 ? 2 : currentStop);
+    else if (atStop && currentStop > 1 && !isFooterStop()) syncScrollPosition();
+    nativeScroll = !transition;
+    schedule();
   }).observe(destination);
   window.addEventListener('pageshow', event => restoreStop(!event.persisted));
   window.addEventListener('hashchange', () => {
@@ -2239,11 +2203,12 @@ mountHeadings();
         homeLink.focus({ preventScroll:true });
         return;
       }
-      jumpToChapter(chapter);
       const heading = document.getElementById(chapters[chapter].getAttribute('aria-labelledby'));
+      goToStop(chapter);
       if (heading) {
         heading.tabIndex = -1;
-        heading.focus({ preventScroll:true });
+        if (transition) transition.focus = heading;
+        else heading.focus({ preventScroll:true });
       }
     });
   }
@@ -3001,7 +2966,26 @@ function mountServicesAccordion(section) {
 
 document.querySelectorAll('.faq-row').forEach(row => {
   const trigger = row.querySelector('summary');
-  row.addEventListener('toggle', () => trigger.setAttribute('aria-expanded', String(row.open)));
+  row.addEventListener('toggle', () => {
+    trigger.setAttribute('aria-expanded', String(row.open));
+    if (!row.open || !readingLayout.matches) return;
+    requestAnimationFrame(() => {
+      if (!row.open) return;
+      const viewport = window.visualViewport;
+      const bottom = viewport ? viewport.offsetTop + viewport.height : innerHeight;
+      const top = document.querySelector('.nav').getBoundingClientRect().bottom;
+      const summary = trigger.getBoundingClientRect();
+      if (summary.top >= bottom || summary.bottom <= top) return;
+      const bounds = row.getBoundingClientRect();
+      const missing = bounds.bottom - bottom + 10;
+      if (missing <= 0) return;
+      const sectionEnd = row.closest('.faq').getBoundingClientRect().bottom;
+      const offset = Math.min(missing, sectionEnd - bottom, Math.max(0, bounds.top - top - 8));
+      if (offset > 1) {
+        scrollBy({ top:offset, behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+      }
+    });
+  });
 });
 
 function mountContact(section) {
@@ -3069,7 +3053,7 @@ function mountContact(section) {
   }
 
   function updateMessage() {
-    const topics = selectedChips().map(chip => chip.textContent.trim());
+    const topics = selectedChips().map(chip => chip.dataset.service === 'other' ? 'a custom project' : chip.textContent.trim());
     const next = topics.length
       ? "Hi Kinetiq, I'm interested in: " + topics.join(', ') + '. About my project: '
       : starter;
