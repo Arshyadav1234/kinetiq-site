@@ -1,3 +1,8 @@
+const contactConfig = {
+  whatsappNumber: '',
+  email: ''
+};
+
 // Small screens, touch-first devices and reduced motion use the document's own scroll.
 const readingLayout = matchMedia('(max-width: 780px), (pointer: coarse), (prefers-reduced-motion: reduce)');
 
@@ -1010,7 +1015,10 @@ mountHeadings();
     toggle.setAttribute('aria-checked', String(value === 'dark'));
     document.querySelector('meta[name="theme-color"]').content = getComputedStyle(root).getPropertyValue('--home-bg').trim();
   }
-try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : 'dark'); } catch (_) {}  let themeBusy = false;
+  let savedTheme;
+  try { savedTheme = localStorage.getItem('kinetiq-home-theme'); } catch (_) {}
+  theme(savedTheme === 'light' ? 'light' : 'dark');
+  let themeBusy = false;
   let activeThemeTransition = null;
   const storeTheme = value => {
     theme(value);
@@ -1108,6 +1116,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     if (reduced.matches) activeThemeTransition?.skipTransition();
   });
 
+  const footer = document.querySelector('.site-footer');
   // A short, theme-matched entrance. No artificial loading percentage.
   if (!readingLayout.matches) {
     const doors = document.createElement('div');
@@ -1119,6 +1128,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     const main = document.querySelector('main');
     nav.inert = true;
     main.inert = true;
+    footer.inert = true;
     let removed = false;
     let fallbackTimer;
     const finishEntry = () => {
@@ -1128,6 +1138,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
       doors.remove();
       nav.inert = false;
       main.inert = false;
+      footer.inert = false;
       reduced.removeEventListener('change', finishEntry);
     };
     reduced.addEventListener('change', finishEntry);
@@ -1327,6 +1338,8 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     let unit = innerHeight, foldDistance = 1, width = innerWidth;
     let active = -1, workVisible = false, pointerX = 0, pointerY = 0, mouseX = 0, mouseY = 0;
     let videoReady = false, userPaused = false, playPending = false;
+    let pendingShot = null;
+    let focusProject = null;
     const clamp = value => Math.max(0, Math.min(1, value));
     const smooth = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
     // In viewport units: reading hold, sweep, first study, side slide, second
@@ -1335,8 +1348,9 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
 
     const studio = document.querySelector('.studio-sculpture');
     const mobileReveals = [
+      surface,
       destination.querySelector('.capability-heading'),
-      ...portfolio.querySelectorAll('.portfolio-heading, .showcase-window, .brief-desk, .film-screen')
+      ...portfolio.querySelectorAll('.showcase-window, .brief-desk, .film-screen')
     ];
     let revealObserver;
     let lastStudioTurn = -1;
@@ -1349,8 +1363,9 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
       if (!readingLayout.matches || reduced.matches) return;
       revealObserver = new IntersectionObserver(entries => {
         for (const entry of entries) {
-          if (!entry.isIntersecting) entry.target.classList.remove('entered-view');
-          else if (entry.intersectionRatio >= .12) entry.target.classList.add('entered-view');
+          if (!entry.isIntersecting || (entry.target === surface && entry.intersectionRatio < .12)) {
+            entry.target.classList.remove('entered-view');
+          } else if (entry.intersectionRatio >= .12) entry.target.classList.add('entered-view');
         }
       }, { rootMargin:'0px 0px -7% 0px', threshold:.12 });
       mobileReveals.forEach(element => revealObserver.observe(element));
@@ -1359,7 +1374,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
 
     // Keep native panning throughout the gesture. A deliberate release helps the
     // browser reach the adjacent snap point even on devices with little inertia.
-    const mobileStops = [surface, destination, portfolio, ...scenes.slice(1)];
+    const mobileStops = [surface, destination, portfolio, ...scenes.slice(1), faq, contact];
     let swipeStart = null;
     window.addEventListener('touchstart', event => {
       swipeStart = null;
@@ -1372,7 +1387,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
         el.getBoundingClientRect().top - offset - (parseFloat(getComputedStyle(el).scrollMarginTop) || 0))));
       let index = 0;
       while (index + 1 < stops.length && stops[index + 1] <= scrollY + 6) index++;
-      swipeStart = {x,y,at:event.timeStamp,index,stops,offset};
+      swipeStart = {x,y,at:event.timeStamp,index,stops,offset,scrollTop:scrollY};
     }, {passive:true});
     window.addEventListener('touchcancel', () => { swipeStart = null; }, {passive:true});
     window.addEventListener('touchend', event => {
@@ -1389,6 +1404,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
       // Tall chapters (for instance an open service or live embed) still have
       // readable content between stops. Allow normal scrolling through it.
       const room = innerHeight - start.offset;
+      if (start.index === 1 && dy > 0 && start.stops[next] - start.scrollTop > room + 6) return;
       if (dy > 0 && start.stops[next] - scrollY > room + 36) return;
       if (dy < 0 && scrollY > start.stops[start.index] + 36) return;
       requestAnimationFrame(() => scrollTo({top:start.stops[next],behavior:'smooth'}));
@@ -1422,14 +1438,15 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
       brandCrossing = (brandRect.left + brandRect.width / 2) / width;
       controlsCrossing = (controlsRect.left + controlsRect.width / 2) / width;
       const baseHeight = section.querySelector('.journey-baseline').offsetHeight;
-      unit = readingLayout.matches ? innerHeight : Math.max(1, (section.offsetHeight - baseHeight) / 5.25);
+      unit = readingLayout.matches ? innerHeight : Math.max(1, (section.offsetHeight - baseHeight - destination.offsetHeight) / 5.25);
       if (!readingLayout.matches) pixelSwap?.measure();
     }
     function loadFilm() {
       if (!video.hasAttribute('src')) {
-        video.preload = readingLayout.matches ? 'none' : 'metadata';
+        video.preload = 'metadata';
         video.src = matchMedia('(max-width: 780px), (pointer: coarse)').matches
           ? video.dataset.mobileSrc : video.dataset.src;
+        video.hidden = false;
       }
     }
     function syncFilm() {
@@ -1456,7 +1473,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
       portfolio.style.setProperty('--mouse-x', `${mouseX.toFixed(2)}px`);
       portfolio.style.setProperty('--mouse-y', `${mouseY.toFixed(2)}px`);
     }
-    function paint(distance, dt) {
+    function paint(distance, dt, sweepY = null) {
       if (readingLayout.matches) {
         if (!reduced.matches) {
           // Follow the native scroll. At rest and beyond the hero there are no animation frames to sustain.
@@ -1470,7 +1487,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
         const eye = innerHeight * .5;
         const current = scenes.findIndex(scene => scene.getBoundingClientRect().bottom >= eye);
         active = current < 0 ? scenes.length - 1 : current;
-        const film = video.getBoundingClientRect();
+        const film = filmSlot.getBoundingClientRect();
         const visible = film.bottom > 0 && film.top < innerHeight;
         if (visible !== workVisible || (visible && !video.hasAttribute('src'))) {
           workVisible = visible;
@@ -1480,7 +1497,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
         syncSegment(active);
         syncWorkTheme(active);
         root.classList.toggle('work-active', destination.getBoundingClientRect().top <= header.offsetHeight && top > header.offsetHeight);
-        root.classList.toggle('portfolio-active', top <= header.offsetHeight + 1 && bottom > header.offsetHeight);
+        root.classList.toggle('portfolio-active', top <= header.offsetHeight + 1 && bottom > header.offsetHeight + 1);
         return;
       }
       const d = (distance - foldDistance) / unit;
@@ -1491,15 +1508,19 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
       const sceneIndex = Math.round(position);
       if (sceneIndex === requestedProject) requestedProject = null;
       if (requestedProject === null) syncSegment(sceneIndex);
-      const visible = reveal >= .995;
-      const sweeping = reveal > .001 && reveal < .999;
+      const sweeping = sweepY !== null;
+      const visible = !sweeping && reveal >= .995 && !section.inert;
       root.classList.toggle('work-sweeping', sweeping);
       root.classList.toggle('sweep-brand-passed', sweeping && reveal > brandCrossing);
       root.classList.toggle('sweep-controls-passed', sweeping && reveal > controlsCrossing);
       header.style.setProperty('--header-cut', `${100 - reveal * 100}%`);
+      if (sweeping) {
+        destination.style.setProperty('--service-cut', `${reveal * 100}%`);
+        destination.style.setProperty('--sweep-offset', `${scrollY - sweepY}px`);
+      }
       stage.style.setProperty('--page-two-cut', `${reveal * 100}%`);
-      sweep.style.setProperty('--sweep-x', `${reveal * (width + 2) - 1}px`);
-      sweep.style.setProperty('--sweep-opacity', sweeping ? '1' : '0');
+      sweep.style.setProperty('--sweep-x', `${reveal * width}px`);
+      sweep.style.setProperty('--sweep-opacity', sweeping ? String(clamp(Math.min(reveal, 1 - reveal) * 22)) : '0');
       if (pixelSwap) pixelSwap.paint(position);
       else portfolio.style.setProperty('--scene-x', `${-position * 100}%`);
       portfolio.style.setProperty('--work-progress', clamp((d - timeline.sweepEnd) / (openings.at(-1) - timeline.sweepEnd)));
@@ -1510,15 +1531,20 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
         line.style.setProperty('--line-y', `${(1 - amount) * 115}%`);
       }));
       paintParallax(dt);
-      root.classList.toggle('portfolio-active', reveal > .5);
+      root.classList.toggle('portfolio-active', reveal > .5 && !section.inert);
       // Never leave focusable controls behind a clipped page or offscreen scene.
-      if (reveal > .001) destination.inert = true;
+      if (sweeping || reveal > .001) destination.inert = true;
       portfolio.inert = !visible;
       portfolio.setAttribute('aria-hidden', String(!visible));
       scenes.forEach((scene, i) => {
         scene.inert = !visible || i !== sceneIndex;
         scene.setAttribute('aria-hidden', String(!visible || i !== sceneIndex));
       });
+      if (focusProject !== null && currentStop !== focusProject + 2) focusProject = null;
+      if (visible && focusProject === sceneIndex && !transition) {
+        focusProjectHeading(sceneIndex);
+        focusProject = null;
+      }
       if (active !== sceneIndex || workVisible !== visible) {
         active = sceneIndex;
         syncWorkTheme(sceneIndex);
@@ -1618,23 +1644,34 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
       comparisonPreview.finished.then(restore, restore);
     });
     const detail = document.getElementById('redesign-detail');
-    document.getElementById('inspect-redesign').addEventListener('click', () => detail.showModal());
-    document.getElementById('close-redesign').addEventListener('click', () => detail.close());
-    const detailChoices = [...detail.querySelectorAll('[data-detail]')];
-    detailChoices.forEach(button => button.addEventListener('click', () => {
-      const enquiry = button.dataset.detail === 'enquiry';
-      detail.dataset.view = button.dataset.detail;
-      detail.querySelector('h2').textContent = enquiry ? 'Two ways in' : 'The first impression';
-      detail.querySelector('#detail-note').textContent = enquiry
-        ? '“Plan your event” opens the enquiry path. “View showreel” gives visitors who are still exploring a way to see the work.'
-        : 'An event stage and showreel invite visitors to explore the studio’s work before they share their plans.';
-      detailChoices.forEach(choice => choice.setAttribute('aria-pressed', String(choice === button)));
-    }));
-    function goToProject(target) {
+    const inspect = document.getElementById('inspect-redesign');
+    const closeDetail = document.getElementById('close-redesign');
+    const detailRange = document.getElementById('compare-redesign');
+    inspect.addEventListener('click', () => detail.showModal());
+    closeDetail.addEventListener('click', () => detail.close());
+    detail.addEventListener('close', () => inspect.focus({ preventScroll:true }));
+    detail.addEventListener('keydown', event => {
+      if (event.key !== 'Tab') return;
+      const edge = event.shiftKey ? closeDetail : detailRange;
+      if (document.activeElement !== edge) return;
+      event.preventDefault();
+      (event.shiftKey ? detailRange : closeDetail).focus();
+    });
+    detailRange.addEventListener('input', () => {
+      detailRange.parentElement.style.setProperty('--before-width', detailRange.value + '%');
+    });
+    function focusProjectHeading(target) {
+      const heading = document.getElementById(scenes[target].getAttribute('aria-labelledby'));
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll:true });
+    }
+    function goToProject(target, moveFocus = false) {
       if (readingLayout.matches) {
         scenes[target].scrollIntoView({ block:'start', behavior:reduced.matches ? 'instant' : 'smooth' });
+        if (moveFocus) focusProjectHeading(target);
         return;
       }
+      focusProject = moveFocus ? target : null;
       goToStop(target + 2, false, target);
     }
     previous.addEventListener('click', () => goToProject(Math.max(0, active - 1)));
@@ -1692,14 +1729,14 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     const posterLoaded = () => { posterFailed = false; filmSlot.classList.add('has-poster'); syncFilmFallback(); };
     const posterError = () => { posterFailed = true; filmSlot.classList.remove('has-poster'); syncFilmFallback(); };
     const filmLoaded = () => {
-      filmFailed = false; videoReady = true; video.muted = true;
-      video.removeAttribute('aria-hidden');
+      filmFailed = false; videoReady = true;
       filmSlot.classList.add('has-video'); shots.forEach(button => { button.disabled = false; });
       syncFilmFallback(); syncFilm();
     };
     const filmError = () => {
       filmFailed = true; videoReady = false;
-      video.setAttribute('aria-hidden', 'true');
+      pendingShot = null;
+      video.hidden = true;
       filmSlot.classList.remove('has-video'); shots.forEach(button => { button.disabled = true; });
       syncFilmFallback();
     };
@@ -1707,7 +1744,12 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     poster.addEventListener('error', posterError);
     if (poster.complete) poster.naturalWidth ? posterLoaded() : posterError();
     video.addEventListener('loadeddata', filmLoaded);
-    video.addEventListener('loadedmetadata', () => { videoReady = true; syncFilm(); });
+    video.addEventListener('loadedmetadata', () => {
+      videoReady = true;
+      if (pendingShot !== null && workVisible) video.currentTime = pendingShot;
+      pendingShot = null;
+      syncFilm();
+    });
     video.addEventListener('error', filmError);
     if (video.readyState >= 2) filmLoaded(); else if (video.error) filmError();
     video.addEventListener('play', () => { userPaused = false; });
@@ -1730,20 +1772,15 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     });
     shots.forEach(button => button.addEventListener('click', () => {
       loadFilm();
-      const seek = () => {
-        video.currentTime = Number(button.dataset.shot);
-        video.play().catch(() => { userPaused = true; });
-      };
-      if (video.readyState >= 1) seek();
-      else {
-        video.addEventListener('loadedmetadata', seek, { once:true });
-        video.load();
-      }
+      const shot = Number(button.dataset.shot);
+      if (video.readyState >= 1) video.currentTime = shot;
+      else pendingShot = shot;
+      video.play().catch(error => { if (error.name !== 'AbortError') userPaused = true; });
     }));
     document.addEventListener('visibilitychange', () => { syncFilm(); wake(); });
     syncLayout();
     return {
-      paint, paintParallax, measure, syncLayout,
+      paint, paintParallax, measure, syncLayout, goToProject,
       selectProject(index) {
         requestedProject = index;
         if (index !== null) syncSegment(index);
@@ -1753,30 +1790,52 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
       isSettling: () => Math.abs(pointerX - mouseX) > .01 || Math.abs(pointerY - mouseY) > .01
     };
   }
+  const faq = document.getElementById('faq');
+  const contact = document.getElementById('contact');
   const section = document.querySelector('.journey');
   const surface = document.querySelector('.surface');
   const destination = document.querySelector('.destination');
+  mountServicesAccordion(destination);
   const stage = document.querySelector('.stage');
   const baseline = document.querySelector('.journey-baseline');
   const workChapter = mountWorkChapter(section, stage, destination, reduced, schedule);
+  const chapters = [
+    surface, destination, document.getElementById('selected-work'),
+    document.querySelector('.research-scene'), document.querySelector('.cursor-scene'), faq, contact
+  ];
+  const faqStop = chapters.length - 2;
+  const contactStop = chapters.length - 1;
+  const chapterHashes = new Map([
+    ['#home', 0], ['#work', 1], ['#selected-work', 2], ['#dreamshowz-title', 2],
+    ['#research-title', 3], ['#motion-title', 4], ['#faq', 5], ['#contact', 6]
+  ]);
+  let serviceHeight = 0;
   let maxProgress = 1;
   let frame = 0;
   let sectionTop = 0;
   let travel = 1;
   let stops = [0, 1];
   let currentStop = 0;
+  let readingChapter = 0;
+  let footerReached = false;
+  let faqExit = null;
   let transition = null;
   let progress = 0;
   let lastFrame = 0;
   function readProgress() {
-    return Math.max(0, Math.min(maxProgress, (scrollY - sectionTop) / travel));
+    const offset = scrollY - sectionTop;
+    return Math.max(0, Math.min(maxProgress, offset <= travel + serviceHeight
+      ? Math.min(offset, travel) / travel
+      : (offset - serviceHeight) / travel));
   }
   function measure() {
     sectionTop = section.getBoundingClientRect().top + scrollY;
-    travel = Math.max(1, baseline.offsetHeight - innerHeight);
-    maxProgress = Math.max(1, (section.offsetHeight - innerHeight) / travel);
+    const stageHeight = readingLayout.matches ? innerHeight : stage.offsetHeight;
+    travel = Math.max(1, baseline.offsetHeight - stageHeight);
+    serviceHeight = readingLayout.matches ? 0 : destination.offsetHeight;
+    maxProgress = Math.max(1, (section.offsetHeight - stageHeight - serviceHeight) / travel);
     workChapter.measure(travel);
-    stops = [0, 1, ...workChapter.projectPositions()];
+    stops = [0, 1, ...workChapter.projectPositions(), maxProgress, maxProgress];
   }
   function paintIntro(p) {
     // Keep animated properties local to the sticky scene.
@@ -1801,53 +1860,132 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     destination.inert = p < .85;
     surface.style.pointerEvents = p > .85 ? 'none' : '';
   }
+  const isServicesStop = () => !readingLayout.matches && currentStop === 1;
+  const isFooterStop = () => !readingLayout.matches && currentStop >= faqStop;
+  function revealFaq() {
+    if (reduced.matches) return;
+    faq.querySelector('.faq-inner').animate(
+      [{ opacity:0, transform:'translateY(14px)' }, { opacity:1, transform:'none' }],
+      { duration:400, easing:'cubic-bezier(.23,1,.32,1)' }
+    );
+  }
   function paint(p, dt = 16.67) {
+    section.inert = isFooterStop();
+    faq.inert = contact.inert = !readingLayout.matches && !isFooterStop();
     if (!readingLayout.matches) paintIntro(Math.min(1, p));
-    workChapter.paint(p * travel, dt);
+    workChapter.paint(p * travel, dt, transition?.sweepY);
+    if (isFooterStop()) root.classList.remove('work-active');
+    if (readingLayout.matches) {
+      const viewportMarker = innerHeight * .33;
+      const chapter = chapters.reduce((active, chapter, i) =>
+        chapter.getBoundingClientRect().top <= viewportMarker ? i : active, 0);
+      if (chapter === faqStop && readingChapter === faqStop - 1 && !reduced.matches) {
+        chapters[faqStop - 1].animate(
+          [{ filter:'blur(0)' }, { filter:'blur(4px)' }, { filter:'blur(0)' }],
+          { duration:500, easing:'ease-in-out' }
+        );
+        revealFaq();
+      }
+      readingChapter = chapter;
+    }
   }
   function stopY() {
-    return Math.round(sectionTop + stops[currentStop] * travel);
+    if (isFooterStop()) return Math.round(chapters[currentStop].getBoundingClientRect().top + scrollY);
+    return Math.round(sectionTop + stops[currentStop] * travel + (currentStop > 1 ? serviceHeight : 0));
   }
   function syncScrollPosition() {
     if (Math.abs(scrollY - stopY()) > 1) scrollTo({ top:stopY(), behavior:'instant' });
   }
+  function clearFold() {
+    root.classList.remove('hero-folding');
+    destination.style.removeProperty('--fold-offset');
+  }
+  function cancelFaqExit() {
+    faqExit?.cancel();
+    faqExit = null;
+  }
   function goToStop(index, instant = false, selectedProject = null) {
     const next = Math.max(0, Math.min(stops.length - 1, index));
     if (readingLayout.matches) {
-      (next === 0 ? surface : destination).scrollIntoView({ block:'start', behavior:reduced.matches ? 'instant' : 'smooth' });
+      chapters[next].scrollIntoView({ block:'start', behavior:reduced.matches || instant ? 'instant' : 'smooth' });
       return;
     }
-    if (next === currentStop && (transition || progress === stops[next])) return;
-    workChapter.selectProject(selectedProject);
-    const from = progress;
+    if (next === faqStop && currentStop === faqStop - 1 && !instant && !transition) {
+      if (faqExit) return;
+      const exit = stage.animate([{ filter:'blur(0)' }, { filter:'blur(9px)' }],
+        { duration:320, easing:'ease-in-out', fill:'forwards' });
+      faqExit = exit;
+      exit.finished.then(() => {
+        if (faqExit !== exit) return;
+        goToStop(next, true);
+        revealFaq();
+      }, () => {});
+      return;
+    }
+    cancelFaqExit();
+    if (next === currentStop && next < faqStop && (transition || progress === stops[next])) return;
+    if (next >= faqStop || (isFooterStop() && next !== 0)) {
+      const entering = next >= faqStop;
+      currentStop = next;
+      footerReached = false;
+      transition = null;
+      clearFold();
+      progress = stops[next];
+      paint(progress);
+      scrollTo({ top:stopY(), behavior:entering && !instant ? 'smooth' : 'instant' });
+      if (entering && instant) footerReached = true;
+      return;
+    }
+    const fold = !instant && (next === 0 || (next === 1 && progress < 1));
+    const from = fold ? Math.min(progress, 1) : progress;
     const to = stops[next];
     const sweepStart = workChapter.sweepStart();
-    const forwardSweep = from >= 1 && from <= sweepStart && next === 2;
-    const reverseSweep = from > sweepStart && from <= stops[2] && next === 1;
+    const forwardSweep = !instant && currentStop === 1 && from <= sweepStart && next >= 2;
+    const reverseSweep = !instant && from > sweepStart && from <= stops[2] && next === 1;
+    const sweepY = forwardSweep ? scrollY : reverseSweep ? sectionTop + travel : null;
+    workChapter.selectProject(forwardSweep ? null : selectedProject);
     currentStop = next;
-    syncScrollPosition();
+    if (!fold) {
+      clearFold();
+      if (next === 1 && !instant && !reverseSweep) scrollTo({ top:stopY(), behavior:'smooth' });
+      else syncScrollPosition();
+    } else {
+      section.inert = false;
+      root.classList.add('hero-folding');
+    }
     transition = instant ? null : {
       from:forwardSweep ? sweepStart : from,
-      to:reverseSweep ? sweepStart : to,
+      to:forwardSweep ? stops[2] : reverseSweep ? sweepStart : to,
+      fold,
+      sweepY,
       start:performance.now(),
       duration:forwardSweep || reverseSweep ? 1050 : 760
     };
     if (instant) { progress = to; paint(progress); }
+    else if (sweepY !== null) { progress = transition.from; paint(progress); }
     schedule();
   }
   function animate(now) {
     frame = 0;
     const dt = lastFrame ? Math.min(64, now - lastFrame) : 16.67;
     lastFrame = now;
-    if (readingLayout.matches) { workChapter.paint(0, dt); return; }
+    if (readingLayout.matches) { paint(0, dt); return; }
     const wasTransitioning = Boolean(transition);
     if (transition) {
       const t = Math.min(1, Math.max(0, (now - transition.start) / transition.duration));
       const eased = t * t * (3 - 2 * t);
       progress = transition.from + (transition.to - transition.from) * eased;
-      if (t === 1) {
+      if (transition.fold) {
+        const top = sectionTop + progress * travel;
+        destination.style.setProperty('--fold-offset', `${top - sectionTop - travel}px`);
+        scrollTo({ top, behavior:'instant' });
+      }
+      if (t === 1 && transition.sweepY !== null && currentStop > 2) {
+        transition = { from:progress, to:stops[currentStop], fold:false, sweepY:null, start:now, duration:760 };
+      } else if (t === 1) {
         progress = stops[currentStop];
         transition = null;
+        clearFold();
       }
     }
     if (wasTransitioning) paint(progress, dt);
@@ -1870,7 +2008,7 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     }
     lastWheel = now;
     wheelDirection = direction;
-    if (transition || nativeOnly) wheelUsed = true;
+    if (transition || faqExit || nativeOnly) wheelUsed = true;
     if (wheelUsed) return;
     if (now - burstStart > 180) {
       wheelDistance = 0;
@@ -1883,15 +2021,27 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     }
   }
   function canScrollInside(target, delta) {
-    const pane = target.closest('.capability-list, textarea');
+    const pane = target.closest('textarea');
     if (!pane) return false;
     return delta > 0 ? pane.scrollTop + pane.clientHeight < pane.scrollHeight - 1 : pane.scrollTop > 0;
   }
+  function canScrollServices(delta) {
+    if (!isServicesStop()) return false;
+    if (delta < 0) return scrollY > stopY() + 1;
+    return destination.getBoundingClientRect().bottom > innerHeight + 1;
+  }
+  function canScrollFooter(delta) {
+    if (!isFooterStop()) return false;
+    if (delta < 0) return scrollY > stopY() + 1;
+    return currentStop === contactStop || faq.getBoundingClientRect().bottom > innerHeight + 1;
+  }
   const dialogOpen = () => Boolean(document.querySelector('dialog[open]'));
   function onWheel(event) {
-    if (reduced.matches || event.ctrlKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY) || dialogOpen()) return;
+    if (event.defaultPrevented || reduced.matches || event.ctrlKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY) || dialogOpen()) return;
     const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1);
-    const nested = canScrollInside(event.target, delta);
+    const documentScroll = !transition?.fold &&
+      (canScrollServices(delta) || canScrollFooter(delta));
+    const nested = documentScroll || canScrollInside(event.target, delta);
     if (!nested && event.cancelable) event.preventDefault();
     collectWheel(delta, performance.now(), nested);
   }
@@ -1908,10 +2058,12 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     const point = event.touches[0];
     const delta = touch.y - point.clientY;
     if (Math.abs(delta) < 7 || Math.abs(point.clientX - touch.x) > Math.abs(delta)) return;
-    if (!touch.used && canScrollInside(event.target, delta)) touch.nested = true;
+    if (!touch.used && (canScrollInside(event.target, delta) || canScrollServices(delta) || canScrollFooter(delta))) {
+      touch.nested = true;
+    }
     if (touch.nested) return;
     if (event.cancelable) event.preventDefault();
-    if (transition) touch.used = true;
+    if (transition || faqExit) touch.used = true;
     if (!touch.used && Math.abs(delta) >= 60 && Math.abs(delta) / Math.max(1, performance.now() - touch.start) >= .16) {
       touch.used = true;
       goToStop(currentStop + Math.sign(delta));
@@ -1934,22 +2086,48 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
     if (event.target.closest('button, a, summary, input, textarea, select, video, [contenteditable]')) return;
     const direction = { ArrowDown:1, PageDown:1, ArrowUp:-1, PageUp:-1 }[event.key] ?? (event.key === ' ' ? (event.shiftKey ? -1 : 1) : 0);
     if (!direction && event.key !== 'Home' && event.key !== 'End') return;
-    if (direction && canScrollInside(event.target, direction)) return;
+    if (direction && (canScrollInside(event.target, direction) || canScrollServices(direction) || canScrollFooter(direction))) return;
     event.preventDefault();
     if (event.repeat) return;
-    if (event.key === 'Home' || event.key === 'End') goToStop(event.key === 'Home' ? 0 : stops.length - 1, true);
-    else if (!transition) goToStop(currentStop + direction);
+    if (event.key === 'End') {
+      goToStop(contactStop, true);
+      scrollTo({ top:document.documentElement.scrollHeight, behavior:'instant' });
+    } else if (event.key === 'Home') goToStop(0, true);
+    else if (!transition && !faqExit) goToStop(currentStop + direction);
   });
 
   window.addEventListener('scroll', () => {
     if (readingLayout.matches) { schedule(); return; }
-    if (dialogOpen()) return;
+    if (dialogOpen() || transition?.fold) return;
+    if (isFooterStop()) {
+      if (!footerReached) footerReached = Math.abs(scrollY - stopY()) <= 2;
+      else if (faq.getBoundingClientRect().top > 2) restoreStop();
+      else currentStop = contact.getBoundingClientRect().top <= 2 ? contactStop : faqStop;
+      return;
+    }
+    if (isServicesStop()) {
+      if (transition) return;
+      if (scrollY < stopY() - 1) syncScrollPosition();
+      const bottom = destination.getBoundingClientRect().bottom;
+      if (bottom < innerHeight - 2 && scrollY > stopY() + 1) {
+        scrollBy({ top:Math.max(bottom - innerHeight, stopY() - scrollY), behavior:'instant' });
+      }
+      return;
+    }
     // Keep momentum and compositor scroll from leaving a card half revealed.
     const delta = scrollY - stopY();
     if (Math.abs(delta) <= 1) return;
     syncScrollPosition();
-    collectWheel(delta, performance.now());
   }, { passive:true });
+  window.addEventListener('scrollend', () => {
+    if (!isFooterStop() || dialogOpen()) return;
+    // A scrollbar drag can interrupt the smooth trip to the footer.
+    if (faq.getBoundingClientRect().top > 2) restoreStop();
+    else {
+      footerReached = true;
+      currentStop = contact.getBoundingClientRect().top <= 2 ? contactStop : faqStop;
+    }
+  });
   window.addEventListener('resize', () => {
     if (readingLayout.matches) { schedule(); return; }
     const oldWorkDistance = stops[2] - 1;
@@ -1962,34 +2140,298 @@ try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : '
         transition.to = resizeProgress(transition.to);
         progress = resizeProgress(progress);
       } else { progress = stops[currentStop]; paint(progress); }
-      syncScrollPosition();
+      if (!transition?.fold && !isFooterStop()) syncScrollPosition();
     }
     schedule();
   }, { passive:true });
   readingLayout.addEventListener('change', () => {
+    const chapter = readingLayout.matches ? currentStop : readingChapter;
     syncGestureListeners();
     workChapter.syncLayout();
-    restoreStop();
-  });
-  function restoreStop() {
     measure();
+    jumpToChapter(chapter);
+  });
+  function jumpToChapter(chapter) {
+    cancelFaqExit();
     transition = null;
+    clearFold();
     workChapter.selectProject(null);
-    const restored = readProgress();
-    currentStop = stops.reduce((nearest, stop, i) => Math.abs(stop - restored) < Math.abs(stops[nearest] - restored) ? i : nearest, 0);
-    progress = readingLayout.matches ? restored : stops[currentStop];
-    if (!readingLayout.matches) syncScrollPosition();
+    currentStop = Math.min(chapter, stops.length - 1);
+    progress = stops[currentStop];
+    footerReached = false;
     paint(progress);
+    if (readingLayout.matches) {
+      chapters[chapter].scrollIntoView({ block:'start', behavior:'instant' });
+      paint(progress);
+    } else syncScrollPosition();
+    if (isFooterStop()) footerReached = Math.abs(scrollY - stopY()) <= 2;
   }
-  window.addEventListener('pageshow', restoreStop);
-  restoreStop();
+  function restoreStop(useFragment = false) {
+    measure();
+    const requested = useFragment ? chapterHashes.get(location.hash) : undefined;
+    if (requested !== undefined) { jumpToChapter(requested); return; }
+    cancelFaqExit();
+    transition = null;
+    clearFold();
+    if (readingLayout.matches) { paint(0); return; }
+    if (faq.getBoundingClientRect().top <= 2) {
+      currentStop = contact.getBoundingClientRect().top <= 2 ? contactStop : faqStop;
+      progress = stops[currentStop];
+      footerReached = true;
+      paint(progress);
+      return;
+    }
+    const restored = readProgress();
+    const nearest = stops.slice(0, faqStop).reduce((best, stop, i) =>
+      Math.abs(stop - restored) < Math.abs(stops[best] - restored) ? i : best, 0);
+    jumpToChapter(nearest);
+  }
+  new ResizeObserver(() => {
+    if (readingLayout.matches) { schedule(); return; }
+    if (destination.offsetHeight === serviceHeight) return;
+    measure();
+    if (currentStop > 1 && !isFooterStop()) syncScrollPosition();
+  }).observe(destination);
+  window.addEventListener('pageshow', event => restoreStop(!event.persisted));
+  window.addEventListener('hashchange', () => {
+    const chapter = chapterHashes.get(location.hash);
+    if (chapter !== undefined) jumpToChapter(chapter);
+  });
+  restoreStop(true);
+  const modifiedClick = event => event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+  for (const link of document.querySelectorAll('[data-proof]')) {
+    link.addEventListener('click', event => {
+      if (modifiedClick(event)) return;
+      event.preventDefault();
+      workChapter.goToProject(Number(link.dataset.proof), event.detail === 0);
+    });
+  }
+  const preselectServices = mountContact(contact);
+  for (const link of document.querySelectorAll('a[href="#contact"]')) {
+    link.addEventListener('click', event => {
+      if (modifiedClick(event)) return;
+      event.preventDefault();
+      const panel = link.hasAttribute('data-service-contact') &&
+        destination.querySelector('.service-trigger[aria-expanded="true"]')?.closest('[data-services]');
+      if (panel) preselectServices(panel.dataset.services.split(' '));
+      goToStop(contactStop);
+      contact.querySelector('fieldset').focus({ preventScroll:true });
+    });
+  }
   for (const id of ['explore', 'scroll']) document.getElementById(id).addEventListener('click', () => goToStop(1));
-  document.querySelector('.brand').addEventListener('click', event => {
-    if (readingLayout.matches || event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) return;
+  const homeLink = document.querySelector('.nav .brand');
+  homeLink.addEventListener('click', event => {
+    if (readingLayout.matches || modifiedClick(event)) return;
     event.preventDefault();
     goToStop(0);
   });
+  mountFooterGate(footer, reduced, () => {
+    if (!readingLayout.matches && !isFooterStop()) goToStop(contactStop, true);
+  });
+  for (const link of footer.querySelectorAll('[data-footer-chapter]')) {
+    link.addEventListener('click', event => {
+      if (modifiedClick(event)) return;
+      const chapter = chapterHashes.get(link.hash);
+      if (chapter === undefined) return;
+      event.preventDefault();
+      if (chapter === 0) {
+        goToStop(0);
+        homeLink.focus({ preventScroll:true });
+        return;
+      }
+      jumpToChapter(chapter);
+      const heading = document.getElementById(chapters[chapter].getAttribute('aria-labelledby'));
+      if (heading) {
+        heading.tabIndex = -1;
+        heading.focus({ preventScroll:true });
+      }
+    });
+  }
 })();
+
+function mountFooterGate(footer, reduced, enterContact) {
+  const root = document.documentElement;
+  const waiting = 'footer-waiting';
+  const isClosed = () => root.classList.contains(waiting);
+  const contactEdge = () => footer.getBoundingClientRect().top - innerHeight;
+  const gestureDirection = () => isClosed() ? (contactEdge() <= 2 ? 1 : 0) : (contactEdge() < -2 ? -1 : 0);
+  const scene = footer.querySelector('.footer-scene');
+  const nav = document.querySelector('.nav');
+  const contact = document.getElementById('contact');
+  let lastWheel = -Infinity;
+  let wheelDirection = 0;
+  let wheelDistance = null;
+  let wheelLatched = false;
+  let touchStart;
+  let settleFrame = 0;
+  let settleGoal;
+  let nextGoal = null;
+  let idleTimer;
+  root.classList.add(waiting);
+
+  // Clip the stationary scene at the contact edge. The browser can scroll the
+  // clip with the page without waiting for JavaScript to repaint the parallax.
+  function sizeFooter() {
+    const height = scene.getBoundingClientRect().height;
+    footer.style.setProperty('--footer-height', `${height}px`);
+    footer.classList.toggle('footer-pinned', !reduced.matches && height <= innerHeight - nav.offsetHeight);
+  }
+  const sizes = new ResizeObserver(sizeFooter);
+  sizes.observe(scene);
+  window.addEventListener('resize', sizeFooter, { passive:true });
+  reduced.addEventListener('change', sizeFooter);
+  const visibility = new IntersectionObserver(([entry]) => {
+    footer.classList.toggle('footer-in-view', entry.intersectionRect.height > 0);
+  }, { threshold:[0, .01] });
+  visibility.observe(footer);
+
+  function settleFooter(open, instant = false) {
+    cancelAnimationFrame(settleFrame);
+    clearTimeout(idleTimer);
+    settleGoal = open;
+    nextGoal = null;
+    root.classList.remove(waiting);
+    const start = scrollY;
+    const collapsedY = Math.max(0, start + contactEdge());
+    const target = open ? root.scrollHeight - innerHeight : collapsedY;
+    const duration = instant || reduced.matches ? 0 : 440;
+    let started;
+
+    function move(now) {
+      started ??= now;
+      const progress = duration ? Math.min(1, (now - started) / duration) : 1;
+      const eased = 1 - (1 - progress) ** 3;
+      scrollTo({ top:start + (target - start) * eased, behavior:'instant' });
+      if (progress < 1) {
+        settleFrame = requestAnimationFrame(move);
+        return;
+      }
+      settleFrame = 0;
+      if (!open) {
+        if (footer.contains(document.activeElement)) {
+          contact.tabIndex = -1;
+          contact.focus({ preventScroll:true });
+        }
+        root.classList.add(waiting);
+      }
+      if (nextGoal !== null) settleFooter(nextGoal);
+    }
+
+    settleFrame = requestAnimationFrame(move);
+  }
+
+  function requestFooter(open) {
+    if (!settleFrame) settleFooter(open);
+    else if (open !== settleGoal) nextGoal = open;
+  }
+
+  window.addEventListener('wheel', event => {
+    if (event.ctrlKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+    const now = performance.now();
+    const direction = Math.sign(event.deltaY);
+    const fresh = now - lastWheel > 160 || wheelDirection !== direction;
+    lastWheel = now;
+    const distance = Math.abs(event.deltaY) * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1);
+    if (settleFrame) {
+      if (event.cancelable) event.preventDefault();
+      if (direction !== (settleGoal ? 1 : -1)) {
+        if (fresh || wheelDistance === null) wheelDistance = 0;
+        wheelDirection = direction;
+        wheelDistance += distance;
+        if (wheelDistance >= 32) {
+          wheelLatched = true;
+          requestFooter(direction > 0);
+        }
+      }
+      return;
+    }
+    if (wheelLatched && !fresh) {
+      if (event.cancelable) event.preventDefault();
+      return;
+    }
+    wheelDirection = direction;
+    wheelLatched = false;
+    const pane = event.target.closest('textarea');
+    const nested = pane && (direction > 0 ? pane.scrollTop + pane.clientHeight < pane.scrollHeight - 1 : pane.scrollTop > 0);
+    if (direction !== gestureDirection() || nested) {
+      wheelDistance = null;
+      return;
+    }
+    if (fresh) wheelDistance = 0;
+    if (wheelDistance === null) return;
+    if (event.cancelable) event.preventDefault();
+    wheelDistance += distance;
+    if (wheelDistance < 32) return;
+    wheelLatched = true;
+    requestFooter(direction > 0);
+  }, { capture:true, passive:false });
+
+  window.addEventListener('touchstart', event => {
+    touchStart = null;
+    if (event.touches.length !== 1 || event.target.closest('input, textarea, select')) return;
+    const direction = settleFrame ? (settleGoal ? -1 : 1) : gestureDirection();
+    const point = event.touches[0];
+    if (direction) touchStart = { x:point.clientX, y:point.clientY, direction };
+  }, { passive:true });
+  window.addEventListener('touchmove', event => {
+    if (!event.cancelable || event.touches.length !== 1) return;
+    const point = event.touches[0];
+    if (settleFrame || (touchStart && (touchStart.y - point.clientY) * touchStart.direction > 8 &&
+        Math.abs(touchStart.y - point.clientY) > Math.abs(touchStart.x - point.clientX))) event.preventDefault();
+  }, { capture:true, passive:false });
+  window.addEventListener('touchend', event => {
+    const point = event.changedTouches[0];
+    const lift = touchStart ? touchStart.y - point.clientY : 0;
+    if (Math.abs(lift) >= 28 && Math.abs(lift) > Math.abs(touchStart.x - point.clientX) &&
+        Math.sign(lift) === touchStart.direction) requestFooter(lift > 0);
+    touchStart = null;
+  }, { passive:true });
+  window.addEventListener('touchcancel', () => { touchStart = null; }, { passive:true });
+
+  window.addEventListener('keydown', event => {
+    const direction = { ArrowDown:1, PageDown:1, End:1, ArrowUp:-1, PageUp:-1 }[event.key] ||
+      (event.key === ' ' && !event.target.closest('a, button, summary') ? (event.shiftKey ? -1 : 1) : 0);
+    if (!direction || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey ||
+        event.target.closest('input, textarea, select, [contenteditable]') ||
+        (!settleFrame && direction !== gestureDirection())) return;
+    event.preventDefault();
+    if (!event.repeat) requestFooter(direction > 0);
+  }, { capture:true });
+
+  window.addEventListener('scroll', () => {
+    if (isClosed() || settleFrame) return;
+    clearTimeout(idleTimer);
+    // Scrollbar dragging and other native jumps can bypass the gestures above.
+    idleTimer = setTimeout(() => {
+      const edge = contactEdge();
+      if (edge >= -2 && !footer.contains(document.activeElement)) {
+        root.classList.add(waiting);
+      } else if (edge > -footer.offsetHeight + 2) {
+        settleFooter(-edge >= footer.offsetHeight / 2);
+      }
+    }, 150);
+  }, { passive:true });
+
+  document.addEventListener('click', event => {
+    if (settleFrame && event.target.closest('a[href^="#"]')) {
+      cancelAnimationFrame(settleFrame);
+      settleFrame = 0;
+    }
+  }, { capture:true });
+
+  reduced.addEventListener('change', () => {
+    if (settleFrame) settleFooter(contactEdge() < -footer.offsetHeight / 2, true);
+  });
+
+  footer.addEventListener('focusin', event => {
+    if (isClosed()) {
+      enterContact();
+      settleFooter(true, true);
+    } else if (event.target.matches(':focus-visible') && footer.getBoundingClientRect().top > event.target.getBoundingClientRect().top) {
+      settleFooter(true, true);
+    }
+  });
+}
 
 
 /* BorderGlow DOM adapter: supplied edge-proximity/angle math, brand-only palette. */
@@ -2229,6 +2671,7 @@ const link = gl => {
     mouseInteraction:true,mouseStrength:.035,clickSurge:true,intro:false,variation:2,
     lightMode:false,dpr:Math.min(devicePixelRatio||1,1.25)
   }};
+  let userPaused = false;
   function mountTunnel(){
     const container = containerRef.current;
     const canvas = canvasRef.current;
@@ -2272,8 +2715,7 @@ const link = gl => {
       return rgb;
     };
 
-    let reduce = motion.matches;
-    let userPaused = motion.matches;
+    let reduce = motion.matches || userPaused;
     const pointer = { x: 0, y: 0, inside: false };
     const steer = { x: 0, y: 0 };
     const surge = { age: 10 };
@@ -2285,6 +2727,7 @@ const link = gl => {
     let visible = true;
 
     const render = () => {
+      if (gl.isContextLost()) return;
       const s = settingsRef.current;
       const width = canvas.width;
       const height = canvas.height;
@@ -2367,7 +2810,9 @@ const link = gl => {
     };
 
     const wake = () => {
-      if (!raf && visible && !document.hidden && !readingLayout.matches) raf = requestAnimationFrame(frame);
+      if (!raf && visible && !document.hidden && !readingLayout.matches && !gl.isContextLost()) {
+        raf = requestAnimationFrame(frame);
+      }
     };
 
     let renderRatio = 1;
@@ -2454,7 +2899,7 @@ const link = gl => {
 
     const control = document.getElementById('tunnel-motion');
     const syncMotion = () => {
-      reduce = userPaused;
+      reduce = motion.matches || userPaused;
       if(reduce){pointer.inside=false;steer.x=steer.y=0;surge.age=10;}
       control.setAttribute('aria-pressed',String(reduce));
       control.setAttribute('aria-label',reduce?'Play background motion':'Pause background motion');
@@ -2469,15 +2914,34 @@ const link = gl => {
       s.opacity=s.lightMode?.65:.72;
       render();wake();
     };
+    const toggleMotion = () => { userPaused = !userPaused; syncMotion(); };
+    const onContextLost = event => {
+      event.preventDefault();
+      visible = false;
+      cancelAnimationFrame(raf);
+      raf = 0;
+      control.hidden = true;
+      container.classList.remove('tunnel-ready');
+    };
+    const onContextRestored = () => {
+      // A restored context has no shader, buffers, or vertex arrays from before the loss.
+      unmountTunnel?.();
+      unmountTunnel = null;
+      syncTunnel();
+    };
     control.hidden=false;
-    control.addEventListener('click',()=>{userPaused=!userPaused;syncMotion();});
-    motion.addEventListener('change',()=>{userPaused=motion.matches;syncMotion();});
+    control.addEventListener('click',toggleMotion);
+    motion.addEventListener('change',syncMotion);
     const themeObserver=new MutationObserver(syncTheme);
     themeObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
-    canvas.addEventListener('webglcontextlost',()=>{visible=false;cancelAnimationFrame(raf);control.hidden=true;container.classList.remove('tunnel-ready');});
+    canvas.addEventListener('webglcontextlost',onContextLost);
+    canvas.addEventListener('webglcontextrestored',onContextRestored);
     container.classList.add('tunnel-ready');syncTheme();syncMotion();
     return () => {
       themeObserver.disconnect();motion.removeEventListener('change',syncMotion);
+      control.removeEventListener('click',toggleMotion);
+      canvas.removeEventListener('webglcontextlost',onContextLost);
+      canvas.removeEventListener('webglcontextrestored',onContextRestored);
       cancelAnimationFrame(raf);
       wakeRef.current = null;
       resizeObserver.disconnect();
@@ -2488,31 +2952,236 @@ const link = gl => {
       window.removeEventListener('pointercancel', onPointerUp);
       document.documentElement.removeEventListener('pointerleave', onPointerLeave);
       document.removeEventListener('visibilitychange', onVisibility);
-      gl.deleteProgram(program.program);
-      gl.deleteBuffer(buffer);
-      gl.deleteVertexArray(vao);
-      gl.getExtension('WEBGL_lose_context')?.loseContext();
     };
 
   }
-  let tunnelMounted = false;
+  let unmountTunnel = null;
   function syncTunnel() {
     if (readingLayout.matches) return;
-    if (!tunnelMounted) tunnelMounted = Boolean(mountTunnel());
+    if (!unmountTunnel) unmountTunnel = mountTunnel();
     else wakeRef.current?.();
   }
   readingLayout.addEventListener('change', syncTunnel);
   syncTunnel();
 })();
 
-// Keep one service expanded; native details/summary provides keyboard interaction.
-(() => {
-  const items=[...document.querySelectorAll('.capability')];
-  const compact=matchMedia('(max-width:700px)');
-  const collapseForMobile=()=>{if(compact.matches)for(const item of items)item.open=false;};
-  collapseForMobile();
-  compact.addEventListener('change',collapseForMobile);
-  for(const item of items)item.addEventListener('toggle',()=>{
-    if(item.open)for(const other of items)if(other!==item)other.open=false;
+// Leave both answers in flow during the handoff so the close and open can run together.
+function mountServicesAccordion(section) {
+  const triggers = [...section.querySelectorAll('.service-trigger')];
+  let expanded = triggers.find(trigger => trigger.getAttribute('aria-expanded') === 'true');
+  function setExpanded(trigger, open) {
+    trigger.setAttribute('aria-expanded', String(open));
+    document.getElementById(trigger.getAttribute('aria-controls')).inert = !open;
+  }
+  if (expanded && matchMedia('(max-width: 899px), (pointer: coarse)').matches) {
+    setExpanded(expanded, false);
+    expanded = null;
+  }
+  triggers.forEach((trigger, index) => {
+    trigger.addEventListener('click', () => {
+      if (expanded) setExpanded(expanded, false);
+      expanded = expanded === trigger ? null : trigger;
+      if (expanded) setExpanded(expanded, true);
+    });
+    trigger.addEventListener('keydown', event => {
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      const last = triggers.length - 1;
+      const target = {
+        ArrowDown:(index + 1) % triggers.length,
+        ArrowUp:(index + last) % triggers.length,
+        Home:0,
+        End:last
+      }[event.key];
+      if (target === undefined) return;
+      event.preventDefault();
+      triggers[target].focus();
+    });
   });
-})();
+}
+
+document.querySelectorAll('.faq-row').forEach(row => {
+  const trigger = row.querySelector('summary');
+  row.addEventListener('toggle', () => trigger.setAttribute('aria-expanded', String(row.open)));
+});
+
+function mountContact(section) {
+  const form = section.querySelector('#inquiry-form');
+  const chips = [...section.querySelectorAll('[data-service]')];
+  const message = section.querySelector('textarea');
+  const send = section.querySelector('#inquiry-submit');
+  const sendLabel = send.querySelector('span');
+  const sendStatus = section.querySelector('#inquiry-submit-status');
+  const copy = section.querySelector('#inquiry-copy');
+  const copyLabel = copy.querySelector('.copy-label');
+  const copySymbol = copy.querySelector('.copy-symbol');
+  const status = section.querySelector('#inquiry-status');
+  const help = section.querySelector('#inquiry-draft-help');
+  const whatsapp = section.querySelector('#inquiry-whatsapp');
+  const email = section.querySelector('#inquiry-email');
+  const number = contactConfig.whatsappNumber.replace(/[^0-9]/g, '');
+  const address = contactConfig.email.trim();
+  whatsapp.hidden = !number;
+  email.hidden = !address;
+  if (number || address) help.textContent = 'Send your draft directly, or copy it for another app.';
+  const starter = message.defaultValue;
+  let prefix = starter;
+  let feedbackTimer;
+  let copyPending = false;
+  let submitting = false;
+  let attempt;
+
+  const selectedChips = () => chips.filter(chip => chip.getAttribute('aria-pressed') === 'true');
+
+  function clearSendFeedback() {
+    message.setCustomValidity('');
+    if (submitting) return;
+    sendLabel.textContent = 'Send inquiry';
+    sendStatus.textContent = '';
+  }
+
+  function resetFeedback() {
+    clearTimeout(feedbackTimer);
+    copyLabel.textContent = 'Copy message';
+    copySymbol.textContent = '⧉';
+    status.textContent = '';
+  }
+
+  function setSendLink(link, href) {
+    if (href) {
+      link.href = href;
+      link.removeAttribute('aria-disabled');
+    } else {
+      link.removeAttribute('href');
+      link.setAttribute('aria-disabled', 'true');
+    }
+  }
+
+  function updateLinks() {
+    resetFeedback();
+    clearSendFeedback();
+    const hasDraft = Boolean(message.value.trim());
+    copy.disabled = !hasDraft;
+    if (number) setSendLink(whatsapp, hasDraft ? 'https://wa.me/' + number + '?' + new URLSearchParams({ text:message.value }) : '');
+    if (address) {
+      const query = new URLSearchParams({ subject:'Project inquiry for Kinetiq', body:message.value });
+      setSendLink(email, hasDraft ? 'mailto:' + address + '?' + query.toString().replace(/\+/g, '%20') : '');
+    }
+  }
+
+  function updateMessage() {
+    const topics = selectedChips().map(chip => chip.textContent.trim());
+    const next = topics.length
+      ? "Hi Kinetiq, I'm interested in: " + topics.join(', ') + '. About my project: '
+      : starter;
+    if (!message.value.trim()) {
+      message.value = next;
+    } else if (message.value.startsWith(prefix)) {
+      message.value = next + message.value.slice(prefix.length);
+    } else {
+      // Preserve a custom rewrite of the generated opening.
+      const marker = '. About my project: ';
+      const end = message.value.indexOf(marker);
+      if (message.value.startsWith("Hi Kinetiq, I'm interested in: ") && end !== -1) {
+        message.value = next + message.value.slice(end + marker.length);
+      }
+    }
+    prefix = next;
+    updateLinks();
+  }
+
+  chips.forEach(chip => chip.addEventListener('click', () => {
+    chip.setAttribute('aria-pressed', String(chip.getAttribute('aria-pressed') !== 'true'));
+    updateMessage();
+  }));
+  message.addEventListener('input', updateLinks);
+  for (const field of [form.elements.name, form.elements.email]) {
+    field.addEventListener('input', clearSendFeedback);
+  }
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (submitting) return;
+    const details = (message.value.startsWith(prefix) ? message.value.slice(prefix.length) : message.value).trim();
+    if (!details) {
+      message.setCustomValidity('Add a little detail about your project.');
+      message.reportValidity();
+      return;
+    }
+    if (location.protocol === 'file:' || !globalThis.crypto?.randomUUID) {
+      sendStatus.textContent = 'Open the hosted preview to send an inquiry. You can still copy this draft.';
+      return;
+    }
+    const payload = {
+      name:form.elements.name.value.trim(),
+      email:form.elements.email.value.trim(),
+      message:details,
+      services:selectedChips().map(chip => chip.dataset.service),
+      companyWebsite:form.elements.companyWebsite.value
+    };
+    const signature = JSON.stringify(payload);
+    if (attempt?.signature !== signature) attempt = { signature, id:crypto.randomUUID(), sent:false };
+    if (attempt.sent) {
+      sendStatus.textContent = 'This inquiry has already been sent.';
+      return;
+    }
+    submitting = true;
+    send.disabled = true;
+    send.setAttribute('aria-busy', 'true');
+    sendLabel.textContent = 'Sending…';
+    sendStatus.textContent = '';
+    try {
+      const response = await fetch(form.action, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body:JSON.stringify({ ...payload, submissionId:attempt.id }),
+        signal:AbortSignal.timeout(12000)
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.ok !== true) {
+        sendStatus.textContent = result?.error || 'We couldn’t confirm delivery. Try again or copy your draft.';
+        return;
+      }
+      attempt.sent = true;
+      sendStatus.textContent = 'Inquiry sent.';
+    } catch {
+      sendStatus.textContent = 'Connection interrupted. Try again or copy your draft.';
+    } finally {
+      submitting = false;
+      send.disabled = false;
+      send.removeAttribute('aria-busy');
+      sendLabel.textContent = 'Send inquiry';
+    }
+  });
+  send.disabled = false;
+  copy.addEventListener('click', async () => {
+    if (copyPending || copy.disabled) return;
+    const draft = message.value;
+    copyPending = true;
+    resetFeedback();
+    try {
+      try {
+        await navigator.clipboard.writeText(draft);
+      } catch {
+        if (message.value !== draft) return;
+        message.select();
+        const copied = document.execCommand('copy');
+        copy.focus({ preventScroll:true });
+        if (!copied) throw new Error('Clipboard unavailable');
+      }
+      if (message.value !== draft) return;
+      copyLabel.textContent = 'Copied';
+      copySymbol.textContent = '✓';
+      status.textContent = 'Message copied.';
+    } catch {
+      message.select();
+      status.textContent = 'Copy unavailable. Use your device’s copy command.';
+    } finally {
+      copyPending = false;
+      if (status.textContent) feedbackTimer = setTimeout(resetFeedback, 2000);
+    }
+  });
+  updateMessage();
+  return services => {
+    chips.forEach(chip => chip.setAttribute('aria-pressed', String(services.includes(chip.dataset.service))));
+    updateMessage();
+  };
+}

@@ -418,7 +418,7 @@ html[data-theme="dark"].work-active .nav,html[data-theme="dark"]:has(.selected-w
   <header class="nav">
     <a class="brand" href="#home" aria-label="Kinetiq home"><span class="mark"></span><span class="word"></span></a>
     <div class="nav-right">
-      <button id="theme" class="theme" type="button" role="switch" aria-checked="false" aria-label="Dark mode">
+      <button id="theme" class="theme" type="button" role="switch" aria-checked="true" aria-label="Dark mode">
         <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
             stroke-linecap="round">
             <circle cx="12" cy="12" r="4" />
@@ -431,7 +431,7 @@ html[data-theme="dark"].work-active .nav,html[data-theme="dark"]:has(.selected-w
           </svg></span>
         <i aria-hidden="true"></i>
       </button>
-      <a class="contact" href="../../Website/index.html#contact">Let’s talk <span>↗</span></a>
+      <a class="contact" href="index.html#contact">Let’s talk <span>↗</span></a>
     </div>
   </header>
   <main id="home">
@@ -452,7 +452,7 @@ html[data-theme="dark"].work-active .nav,html[data-theme="dark"]:has(.selected-w
               to life with motion.</p>
             <div class="actions">
               <div class="border-glow-card"><span class="edge-light" aria-hidden="true"></span><a
-                  class="primary border-glow-inner" href="../../Website/index.html#contact">Let’s build yours
+                  class="primary border-glow-inner" href="index.html#contact">Let’s build yours
                   <span>↗</span></a></div><button class="explore" id="explore">See what we build <span>↓</span></button>
             </div>
           </div>
@@ -548,7 +548,7 @@ html[data-theme="dark"].work-active .nav,html[data-theme="dark"]:has(.selected-w
             </details>
           </div>
           <div class="capability-footer">
-            <p>One project. Or the pieces working together.</p><a href="../../Website/index.html#contact">Tell us what
+            <p>One project. Or the pieces working together.</p><a href="index.html#contact">Tell us what
               you’re building <span aria-hidden="true">↗</span></a>
           </div>
         </section>
@@ -597,7 +597,7 @@ html[data-theme="dark"].work-active .nav,html[data-theme="dark"]:has(.selected-w
       <article class="project-panel cursor-panel" aria-labelledby="cursor-title" hidden inert>
         <div class="project-caption"><div><p class="project-kind">INDEPENDENT CONCEPT / PRODUCT FILM</p><h3 id="cursor-title">Cursor</h3></div><span class="film-duration">00:23</span></div>
         <p class="project-deck">From the first prompt to the final edit. An idea, set in motion.</p>
-        <div class="cursor-film"><video id="work-motion" data-src="images/motion.mp4" poster="images/motion-poster.webp" controls muted playsinline preload="none" aria-label="Independent Cursor concept film"></video></div>
+        <div class="cursor-film"><video id="work-motion" data-src="images/motion.mp4" data-mobile-src="images/motion-mobile.mp4" poster="images/motion-poster.webp" controls muted playsinline preload="none" aria-label="Independent Cursor concept film"></video></div>
         <div class="cursor-chapters" role="group" aria-label="Film chapters"><button type="button" data-shot="3"><img src="images/cursor-agent.webp" width="260" height="146" loading="lazy" alt=""><span>Agent<small>00:03</small></span></button><button type="button" data-shot="11"><img src="images/cursor-tab.webp" width="260" height="146" loading="lazy" alt=""><span>Tab<small>00:11</small></span></button><button type="button" data-shot="15"><img src="images/cursor-flow.webp" width="260" height="146" loading="lazy" alt=""><span>Workflow<small>00:15</small></span></button></div>
         <div class="cursor-film-controls"><span>Hover for a muted preview</span><button type="button" id="film-sound" aria-pressed="false">Play with sound</button></div>
         <p class="cursor-disclosure">Independent concept. Not affiliated with Cursor.</p>
@@ -1612,7 +1612,10 @@ mountHeadings();
     toggle.setAttribute('aria-checked', String(value === 'dark'));
     document.querySelector('meta[name="theme-color"]').content = getComputedStyle(root).getPropertyValue('--bg').trim();
   }
-try { theme(localStorage.getItem('kinetiq-home-theme') === 'light' ? 'light' : 'dark'); } catch (_) {}  let themeBusy = false;
+  let savedTheme;
+  try { savedTheme = localStorage.getItem('kinetiq-home-theme'); } catch (_) {}
+  theme(savedTheme === 'light' ? 'light' : 'dark');
+  let themeBusy = false;
   let activeThemeTransition = null;
   const storeTheme = value => {
     theme(value);
@@ -2352,7 +2355,11 @@ const link = gl => {
   let keyboardMode=false;
   document.addEventListener('keydown',()=>{keyboardMode=true;},true);
   document.addEventListener('pointermove',event=>{if(event.movementX||event.movementY)keyboardMode=false;},{passive:true});
-  const loadVideo = () => { if (!video.getAttribute('src')) { video.src = video.dataset.src; video.load(); } };
+  const loadVideo = () => {
+    if (video.hasAttribute('src')) return;
+    const mobile = matchMedia('(max-width: 780px), (pointer: coarse)').matches;
+    video.src = mobile ? video.dataset.mobileSrc : video.dataset.src;
+  };
   function stopFilm() {
     mediaRequest++;
     video.pause(); video.muted = true; soundStarted = false;

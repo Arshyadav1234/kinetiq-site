@@ -6,23 +6,45 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0a0a0b">
   <meta name="description"
-    content="Websites, custom software, AI automations and motion. Kinetiq brings your next idea to life.">
+    content="Kinetiq is an independent studio building websites, custom apps, AI automations and product films.">
   <title>Kinetiq — Your next move, built.</title>
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://kinetiqsystems.vercel.app/">
+  <meta property="og:site_name" content="Kinetiq">
+  <meta property="og:title" content="Kinetiq — Your next move, built.">
+  <meta property="og:description" content="Kinetiq is an independent studio building websites, custom apps, AI automations and product films.">
+  <meta property="og:image" content="https://kinetiqsystems.vercel.app/images/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Kinetiq logo on a near-black background">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Kinetiq — Your next move, built.">
+  <meta name="twitter:description" content="Kinetiq is an independent studio building websites, custom apps, AI automations and product films.">
+  <meta name="twitter:image" content="https://kinetiqsystems.vercel.app/images/og-image.png">
+  <meta name="twitter:image:alt" content="Kinetiq logo on a near-black background">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
     rel="stylesheet" media="print" onload="this.media='all'">
   <link rel="icon" href="favicon.ico" sizes="32x32">
   <link rel="icon" href="images/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=home-ink">
-  <script src="app.js?v=home-ink" defer></script>
+  <link rel="stylesheet" href="styles.css?v=site-review">
+  <script src="app.js?v=site-review" defer></script>
+  <script>
+    if (location.protocol === 'https:') {
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+      const analytics = document.createElement('script');
+      analytics.src = '/_vercel/insights/script.js';
+      document.head.append(analytics);
+    }
+  </script>
 </head>
 
 <body>
   <header class="nav">
     <a class="brand" href="#home" aria-label="Kinetiq home"><span class="mark"></span><span class="word"></span></a>
     <div class="nav-right">
-      <button id="theme" class="theme" type="button" role="switch" aria-checked="false" aria-label="Dark mode">
+      <button id="theme" class="theme" type="button" role="switch" aria-checked="true" aria-label="Dark mode">
         <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
             stroke-linecap="round">
             <circle cx="12" cy="12" r="4" />
@@ -35,7 +57,7 @@
           </svg></span>
         <i aria-hidden="true"></i>
       </button>
-      <a class="contact" href="../../Website/index.html#contact">Let’s talk <span>↗</span></a>
+      <a class="contact" href="#contact">Let’s talk <span>↗</span></a>
     </div>
   </header>
   <main id="home">
@@ -44,122 +66,36 @@
       <div class="stage">
         <div class="surface">
           <div class="light-tunnel-container" aria-hidden="true"><canvas class="light-tunnel-canvas"></canvas></div>
-          <div class="intro">
-            <p class="eyebrow"><span></span> INDEPENDENT DIGITAL & CREATIVE STUDIO</p>
-            <h1 aria-label="Your next move. Built by kinetiq.">
-              <span class="tech-line" data-text="Your next move." aria-hidden="true"><span class="tech-fallback">Your
-                  next move.</span><canvas></canvas></span>
-              <span class="tech-line tech-muted" data-text="Built by kinetiq." aria-hidden="true"><span
-                  class="tech-fallback">Built by kinetiq.</span><canvas></canvas></span>
-            </h1>
-            <p class="description">Websites, custom software and AI automations.<br> Built around your business. Brought
-              to life with motion.</p>
-            <div class="actions">
-              <div class="border-glow-card"><span class="edge-light" aria-hidden="true"></span><a
-                  class="primary border-glow-inner" href="../../Website/index.html#contact">Let’s build yours
-                  <span>↗</span></a></div><button class="explore" id="explore">See what we build <span>↓</span></button>
+          <div class="hero-content">
+            <div class="intro">
+              <p class="eyebrow"><span></span> INDEPENDENT DIGITAL & CREATIVE STUDIO</p>
+              <h1 aria-label="Your next move. Built by kinetiq.">
+                <span class="tech-line" data-text="Your next move." aria-hidden="true"><span class="tech-fallback">Your
+                    next move.</span><canvas></canvas></span>
+                <span class="tech-line tech-muted" data-text="Built by kinetiq." aria-hidden="true"><span
+                    class="tech-fallback">Built by kinetiq.</span><canvas></canvas></span>
+              </h1>
+              <p class="description">Websites, custom software and AI automations.<br> Built around your business. Brought
+                to life with motion.</p>
+              <div class="actions">
+                <div class="border-glow-card"><span class="edge-light" aria-hidden="true"></span><a
+                    class="primary border-glow-inner" href="#contact">Let’s build yours
+                    <span>↗</span></a></div><button class="explore" id="explore">See what we build <span>↓</span></button>
+              </div>
             </div>
-          </div>
-          <div class="mobile-studio" aria-hidden="true">
-            <div class="studio-rails"><i></i><i></i><i></i></div>
-            <div class="studio-sculpture">
-              <div class="studio-mark"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="mobile-studio" aria-hidden="true">
+              <div class="studio-rails"><i></i><i></i><i></i></div>
+              <div class="studio-sculpture">
+                <div class="studio-mark"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              </div>
             </div>
           </div>
           <div class="bottom">
             <div class="motion-tools"><button id="tunnel-motion" type="button" aria-label="Pause background motion"
-                aria-pressed="false" hidden>Ⅱ MOTION ON</button><span class="motion-hint">DESIGN. ENGINEERING.
-                MOTION.</span></div><button id="scroll" aria-label="Explore what Kinetiq builds">WHAT WE BUILD
+                aria-pressed="false" hidden>Ⅱ MOTION ON</button><span class="motion-hint">Websites. Automation. AI.</span></div><button id="scroll" aria-label="Explore what Kinetiq builds">What we build
               <span>↓</span></button>
           </div>
         </div>
-        <section class="destination capabilities" id="work" aria-labelledby="capabilities-title" inert>
-          <div class="capability-heading">
-            <p class="section-index">01 / WHAT WE BUILD</p>
-            <div class="capability-intro">
-              <h2 id="capabilities-title">From what if.<br><span>To what’s next.</span></h2>
-              <p>Your presence. Your operations. Your story.<br> We design and build the pieces that move them forward.
-              </p>
-            </div>
-          </div>
-          <div class="capability-list">
-            <details class="capability" name="kinetiq-capability" open>
-              <summary><span class="cap-number">01</span>
-                <h3>Websites & custom apps</h3><span class="cap-note">DESIGN + DEVELOPMENT</span><span
-                  class="cap-expand" aria-hidden="true">+</span>
-              </summary>
-              <div class="capability-body">
-                <div class="cap-scope">
-                  <p>A better place for your business online. A custom tool for the way your team works. We take it from
-                    design to a working product.</p>
-                  <ul aria-label="Website and app capabilities">
-                    <li>Business websites</li>
-                    <li>Web platforms</li>
-                    <li>Custom tools & apps</li>
-                  </ul>
-                </div>
-                <div class="cap-proof"><span class="proof-label">BUILT BY KINETIQ</span>
-                  <p class="proof-title">DreamShowz <span aria-hidden="true">↗</span></p>
-                  <p>A website designed and built for the DreamShowz business.</p>
-                </div>
-              </div>
-            </details>
-            <details class="capability" name="kinetiq-capability">
-              <summary><span class="cap-number">02</span>
-                <h3>Automations & AI agents</h3><span class="cap-note">WORKFLOWS + SYSTEMS</span><span
-                  class="cap-expand" aria-hidden="true">+</span>
-              </summary>
-              <div class="capability-body">
-                <div class="cap-scope">
-                  <p>Connect your tools, cut repetitive work and put agents to work on the complex tasks. Built around
-                    your process, with review and control where you need them.</p>
-                  <ul aria-label="Automation capabilities">
-                    <li>Custom integrations</li>
-                    <li>Research agents</li>
-                    <li>Approval workflows</li>
-                  </ul>
-                </div>
-                <div class="cap-proof"><span class="proof-label">A WORKFLOW WE’VE BUILT</span>
-                  <p class="proof-title">Research. Review. Publish.</p>
-                  <p>For a geopolitics creator: sourced research and drafts three times a day, with owner editing and
-                    review before publishing.</p>
-                  <ol class="proof-flow" aria-label="Research automation flow">
-                    <li>Sources</li>
-                    <li>Draft</li>
-                    <li>Owner review</li>
-                    <li>Publish</li>
-                  </ol>
-                </div>
-              </div>
-            </details>
-            <details class="capability" name="kinetiq-capability">
-              <summary><span class="cap-number">03</span>
-                <h3>Motion & product ads</h3><span class="cap-note">STORY + MOVEMENT</span><span class="cap-expand"
-                  aria-hidden="true">+</span>
-              </summary>
-              <div class="capability-body">
-                <div class="cap-scope">
-                  <p>Show what makes your product worth a closer look. Motion graphics and product films that turn an
-                    idea, feature or launch into a clear visual story.</p>
-                  <ul aria-label="Motion capabilities">
-                    <li>Motion graphics</li>
-                    <li>Product ads</li>
-                    <li>Launch films</li>
-                  </ul>
-                </div>
-                <div class="cap-proof"><span class="proof-label">FROM FIRST FRAME TO FINAL CUT</span>
-                  <p class="proof-title">Make the idea move.</p>
-                  <p>Concept, visual direction and animation shaped around the product and what the viewer needs to
-                    understand.</p>
-                </div>
-              </div>
-            </details>
-          </div>
-          <div class="capability-footer">
-            <p>One project. Or the pieces working together.</p><a href="../../Website/index.html#contact">Tell us what
-              you’re building <span aria-hidden="true">↗</span></a>
-          </div>
-        </section>
         <section class="portfolio" id="selected-work" aria-labelledby="portfolio-title" inert>
           <div class="portfolio-heading">
             <h2 id="portfolio-title">Selected work</h2>
@@ -239,7 +175,7 @@
                 <div class="film-screen">
                   <div class="motion-media asset-slot">
                     <img class="motion-poster" src="images/motion-poster.webp" alt="Ideas into code, the opening title of the Cursor study">
-                    <video id="work-motion" data-src="images/motion.mp4" data-mobile-src="images/motion-mobile.mp4" poster="images/motion-poster.webp" controls muted loop playsinline preload="none" aria-label="Cursor independent motion study"></video>
+                    <video id="work-motion" data-src="images/motion.mp4" data-mobile-src="images/motion-mobile.mp4" poster="images/motion-poster.webp" controls muted loop playsinline preload="none" hidden aria-label="Cursor independent motion study"></video>
                     <div class="asset-fallback" aria-hidden="true"><p>Film preview unavailable</p></div>
                   </div>
                   <div class="film-playhead" aria-hidden="true"></div>
@@ -260,13 +196,272 @@
           </div>
         </section>
       </div>
+      <div class="journey-flow">
+        <section class="destination capabilities" id="work" aria-labelledby="capabilities-title">
+          <div class="capability-heading">
+            <p class="section-index">01 / WHAT WE BUILD</p>
+            <div class="capability-intro">
+              <h2 id="capabilities-title">From what if.<br><span>To what’s next.</span></h2>
+              <p>Your presence. Your operations. Your story.<br> We design and build the pieces that move them forward.
+              </p>
+            </div>
+          </div>
+          <div class="capability-list">
+            <div class="capability" data-services="website app">
+              <h3 class="service-title"><button class="service-trigger" type="button" aria-expanded="true" aria-controls="service-panel-01">
+                <span class="cap-number" aria-hidden="true">01</span><span class="service-name">Websites & custom apps</span><span class="cap-note">DESIGN + DEVELOPMENT</span><span class="cap-expand" aria-hidden="true">+</span>
+              </button></h3>
+              <div class="service-panel" id="service-panel-01">
+                <div>
+                  <div class="capability-body">
+                    <div class="cap-scope">
+                      <p>A better place for your business online. A custom tool for the way your team works. We take it from
+                        design to a working product.</p>
+                      <ul aria-label="Website and app capabilities">
+                        <li>Business websites</li>
+                        <li>Web platforms</li>
+                        <li>Custom tools & apps</li>
+                      </ul>
+                    </div>
+                    <div class="cap-proof">
+                      <a class="proof-link" href="#dreamshowz-title" data-proof="0">
+                        <span class="proof-label">BUILT BY KINETIQ</span>
+                        <span class="proof-title">DreamShowz <span aria-hidden="true">↗</span></span>
+                      </a>
+                      <p>A website designed and built for the DreamShowz business.</p>
+                      <a class="service-preview" href="#dreamshowz-title" data-proof="0">
+                        <img src="images/dreamshowz-after.webp" loading="lazy" decoding="async" alt="DreamShowz homepage redesign">
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="capability" data-services="automation ai-agent">
+              <h3 class="service-title"><button class="service-trigger" type="button" aria-expanded="false" aria-controls="service-panel-02">
+                <span class="cap-number" aria-hidden="true">02</span><span class="service-name">Automations & AI agents</span><span class="cap-note">WORKFLOWS + SYSTEMS</span><span class="cap-expand" aria-hidden="true">+</span>
+              </button></h3>
+              <div class="service-panel" id="service-panel-02" inert>
+                <div>
+                  <div class="capability-body">
+                    <div class="cap-scope">
+                      <p>Connect your tools, cut repetitive work and put agents to work on the complex tasks. Built around
+                        your process, with review and control where you need them.</p>
+                      <ul aria-label="Automation capabilities">
+                        <li>Custom integrations</li>
+                        <li>Research agents</li>
+                        <li>Approval workflows</li>
+                      </ul>
+                    </div>
+                    <div class="cap-proof">
+                      <a class="proof-link" href="#research-title" data-proof="1">
+                        <span class="proof-label">BUILT BY KINETIQ</span>
+                        <span class="proof-title">Research agent <span aria-hidden="true">↗</span></span>
+                      </a>
+                      <p>A research-to-post agent for a geopolitics creator.</p>
+                      <a class="service-preview" href="#research-title" data-proof="1" aria-label="View the Research agent project and its editorial desk sample">
+                        <div class="brief-paper" aria-hidden="true">
+                          <div class="brief-mast"><strong>Editorial desk</strong><span>Interactive sample</span></div>
+                          <div class="brief-body"><span class="brief-label">Draft headline</span><p>Trade talks resume with shipping routes on the agenda</p><span class="source-note">Source note</span></div>
+                          <div class="brief-action"><span>Awaiting owner review</span><span class="brief-preview-button">Approve draft</span></div>
+                        </div>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="capability" data-services="motion">
+              <h3 class="service-title"><button class="service-trigger" type="button" aria-expanded="false" aria-controls="service-panel-03">
+                <span class="cap-number" aria-hidden="true">03</span><span class="service-name">Motion & product ads</span><span class="cap-note">STORY + MOVEMENT</span><span class="cap-expand" aria-hidden="true">+</span>
+              </button></h3>
+              <div class="service-panel" id="service-panel-03" inert>
+                <div>
+                  <div class="capability-body">
+                    <div class="cap-scope">
+                      <p>Show what makes your product worth a closer look. Motion graphics and product films that turn an
+                        idea, feature or launch into a clear visual story.</p>
+                      <ul aria-label="Motion capabilities">
+                        <li>Motion graphics</li>
+                        <li>Product ads</li>
+                        <li>Launch films</li>
+                      </ul>
+                    </div>
+                    <div class="cap-proof">
+                      <a class="proof-link" href="#motion-title" data-proof="2">
+                        <span class="proof-label">BUILT BY KINETIQ</span>
+                        <span class="proof-title">Cursor <span aria-hidden="true">↗</span></span>
+                      </a>
+                      <p>An independent product film, a self-initiated concept.</p>
+                      <a class="service-preview" href="#motion-title" data-proof="2">
+                        <img src="images/motion-poster.webp" loading="lazy" decoding="async" alt="Opening title of the independent Cursor product film">
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="capability-footer">
+            <p>One project. Or the pieces working together.</p><a href="#contact" data-service-contact>Tell us what
+              you’re building <span aria-hidden="true">↗</span></a>
+          </div>
+        </section>
+      </div>
+    </section>
+    <section id="faq" class="faq" aria-labelledby="faq-title">
+      <div class="faq-inner">
+        <div class="faq-intro">
+          <h2 id="faq-title">Questions,<br> <span>answered.</span></h2>
+          <a class="faq-contact" href="#contact">Ask us a question <span aria-hidden="true">↗</span></a>
+        </div>
+        <div class="faq-list">
+          <details class="capability faq-row" name="kinetiq-faq" open>
+            <summary aria-expanded="true"><span class="cap-number" aria-hidden="true">01</span><h3>What do I need to start?</h3><span class="cap-expand" aria-hidden="true">+</span></summary>
+            <div class="faq-answer"><p>A short message about what you're building and what you want it to do. Kinetiq comes back with questions and a suggested approach.</p></div>
+          </details>
+          <details class="capability faq-row" name="kinetiq-faq">
+            <summary aria-expanded="false"><span class="cap-number" aria-hidden="true">02</span><h3>How long does a project take?</h3><span class="cap-expand" aria-hidden="true">+</span></summary>
+            <div class="faq-answer"><p>It depends on what you're building. You get a realistic estimate before any work starts.</p></div>
+          </details>
+          <details class="capability faq-row" name="kinetiq-faq">
+            <summary aria-expanded="false"><span class="cap-number" aria-hidden="true">03</span><h3>How much does it cost?</h3><span class="cap-expand" aria-hidden="true">+</span></summary>
+            <div class="faq-answer"><p>Pricing depends on scope. Share your project and Kinetiq replies with a quote.</p></div>
+          </details>
+          <details class="capability faq-row" name="kinetiq-faq">
+            <summary aria-expanded="false"><span class="cap-number" aria-hidden="true">04</span><h3>Do you only build websites?</h3><span class="cap-expand" aria-hidden="true">+</span></summary>
+            <div class="faq-answer"><p>No. Kinetiq builds websites and custom apps, automations and AI agents, and motion and product ads, together or separately.</p></div>
+          </details>
+          <details class="capability faq-row" name="kinetiq-faq">
+            <summary aria-expanded="false"><span class="cap-number" aria-hidden="true">05</span><h3>Will an AI agent act without my approval?</h3><span class="cap-expand" aria-hidden="true">+</span></summary>
+            <div class="faq-answer"><p>Not unless you want it to. Kinetiq can build in review and approval steps so you stay in control, like the research agent above, where the owner approves every post before it goes out.</p></div>
+          </details>
+        </div>
+      </div>
+    </section>
+    <section id="contact" class="inquiry" aria-labelledby="inquiry-title">
+      <div class="inquiry-inner">
+        <div class="inquiry-intro">
+          <h2 id="inquiry-title">What are you<br> building?</h2>
+          <p>Tell us what you’re working on and what you want it to do.</p>
+        </div>
+        <form class="inquiry-editor" id="inquiry-form" action="/api/inquiry" method="post" aria-labelledby="inquiry-brief-title">
+          <h3 id="inquiry-brief-title">Project brief</h3>
+          <fieldset id="inquiry-services" tabindex="-1">
+            <legend>I need:</legend>
+            <div class="inquiry-chips">
+              <button type="button" data-service="website" aria-pressed="false">Website</button>
+              <button type="button" data-service="automation" aria-pressed="false">Automation</button>
+              <button type="button" data-service="ai-agent" aria-pressed="false">AI agent</button>
+              <button type="button" data-service="app" aria-pressed="false">App</button>
+              <button type="button" data-service="motion" aria-pressed="false">Motion</button>
+            </div>
+          </fieldset>
+          <div class="inquiry-fields">
+            <label for="inquiry-name">Name
+              <input type="text" id="inquiry-name" name="name" autocomplete="name" maxlength="100" required>
+            </label>
+            <label for="inquiry-reply-email">Reply email
+              <input type="email" id="inquiry-reply-email" name="email" autocomplete="email" maxlength="254" required>
+            </label>
+          </div>
+          <div hidden>
+            <label for="inquiry-company-website">Company website</label>
+            <input type="text" id="inquiry-company-website" name="companyWebsite" tabindex="-1" autocomplete="off">
+          </div>
+          <label for="inquiry-message">Your project</label>
+          <textarea id="inquiry-message" name="message" rows="4" maxlength="3000" required placeholder="Tell us a little about your project." aria-describedby="inquiry-draft-help">Hi Kinetiq, I'd like to discuss a project. </textarea>
+          <div class="inquiry-send">
+            <div class="inquiry-actions">
+              <button type="submit" id="inquiry-submit" disabled><span>Send inquiry</span><span aria-hidden="true">↗</span></button>
+              <button type="button" id="inquiry-copy"><span class="copy-label">Copy message</span><span class="copy-symbol" aria-hidden="true">⧉</span></button>
+              <a id="inquiry-whatsapp" target="_blank" rel="noopener noreferrer" hidden>WhatsApp</a>
+              <a id="inquiry-email" hidden>Email</a>
+            </div>
+            <p id="inquiry-draft-help">Tell us what you need and how to reach you. For a DM, you can copy your draft.</p>
+            <p id="inquiry-submit-status" role="status"></p>
+            <p id="inquiry-status" role="status"></p>
+          </div>
+        </form>
+        <div class="inquiry-direct">
+          <h3>Message us directly</h3>
+          <nav class="inquiry-social" aria-label="Contact Kinetiq on social media">
+            <a href="https://instagram.com/kinetiq.systems" target="_blank" rel="noopener noreferrer">
+              <span>Instagram</span><span class="inquiry-handle">@kinetiq.systems</span><span aria-hidden="true">↗</span>
+            </a>
+            <a href="https://t.me/kinetiqsystems" target="_blank" rel="noopener noreferrer">
+              <span>Telegram</span><span class="inquiry-handle">@kinetiqsystems</span><span aria-hidden="true">↗</span>
+            </a>
+          </nav>
+        </div>
+      </div>
     </section>
   </main>
+  <footer class="site-footer" aria-labelledby="footer-title">
+    <div class="footer-scene">
+      <div class="footer-art" aria-hidden="true">
+        <div class="footer-ribbon">
+          <div class="footer-ribbon-track">
+            <div class="footer-ribbon-group">
+              <span>Websites &amp; apps <i></i> Automation &amp; AI <i></i> Motion &amp; product ads <i></i></span>
+              <span>Websites &amp; apps <i></i> Automation &amp; AI <i></i> Motion &amp; product ads <i></i></span>
+              <span>Websites &amp; apps <i></i> Automation &amp; AI <i></i> Motion &amp; product ads <i></i></span>
+            </div>
+            <div class="footer-ribbon-group">
+              <span>Websites &amp; apps <i></i> Automation &amp; AI <i></i> Motion &amp; product ads <i></i></span>
+              <span>Websites &amp; apps <i></i> Automation &amp; AI <i></i> Motion &amp; product ads <i></i></span>
+              <span>Websites &amp; apps <i></i> Automation &amp; AI <i></i> Motion &amp; product ads <i></i></span>
+            </div>
+          </div>
+        </div>
+        <div class="footer-watermark">kinetiq</div>
+      </div>
+      <div class="footer-inner">
+        <div class="footer-content">
+          <h2 id="footer-title">Ready to begin?</h2>
+          <div class="footer-actions">
+            <a class="footer-pill" href="#contact"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>Start a project</a>
+            <a class="footer-pill" href="#selected-work" data-footer-chapter><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 9h16"/></svg>See our work</a>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <div class="footer-credit"><span class="mark" aria-hidden="true"></span><small>© 2026 Kinetiq</small></div>
+          <nav class="footer-links" aria-label="Footer links">
+            <a href="#work" data-footer-chapter>Services</a>
+            <a href="#faq" data-footer-chapter>FAQ</a>
+            <a href="https://instagram.com/kinetiq.systems" target="_blank" rel="noopener noreferrer">Instagram <span aria-hidden="true">↗</span></a>
+            <a href="https://t.me/kinetiqsystems" target="_blank" rel="noopener noreferrer">Telegram <span aria-hidden="true">↗</span></a>
+          </nav>
+          <a class="footer-pill footer-top" href="#home" data-footer-chapter>Back to top <span aria-hidden="true">↑</span></a>
+        </div>
+      </div>
+    </div>
+  </footer>
   <dialog id="redesign-detail" aria-labelledby="detail-title">
-    <div class="detail-head"><div><span class="study-type">DreamShowz / Design notes</span><h2 id="detail-title">The first impression</h2></div><button type="button" id="close-redesign" aria-label="Close design notes">Close ×</button></div>
-    <div class="detail-image"><img loading="lazy" src="images/dreamshowz-after.webp" alt="DreamShowz homepage redesign"></div>
-    <p id="detail-note">An event stage and showreel invite visitors to explore the studio’s work before they share their plans.</p>
-    <div class="detail-options" role="group" aria-label="Inspect a design decision"><button type="button" data-detail="hero" aria-pressed="true">First impression</button><button type="button" data-detail="enquiry" aria-pressed="false">Enquiry path</button></div>
+    <div class="detail-head">
+      <h2 id="detail-title">Inside the DreamShowz redesign</h2>
+      <button type="button" id="close-redesign" autofocus>Close ×</button>
+    </div>
+    <div class="detail-grid">
+      <div>
+        <div class="detail-compare" style="--before-width:50%">
+          <img src="images/dreamshowz-after.webp" alt="DreamShowz redesign" loading="lazy" decoding="async">
+          <img class="detail-before" src="images/dreamshowz-before.webp" alt="DreamShowz before the redesign" loading="lazy" decoding="async">
+          <div class="compare-rule" aria-hidden="true"><span class="compare-grip"></span></div>
+          <input id="compare-redesign" type="range" min="0" max="100" value="50" aria-label="Amount of the original site shown">
+        </div>
+        <div class="detail-labels" aria-hidden="true"><span>Before</span><span>After</span></div>
+      </div>
+      <div class="detail-scope">
+        <h3>What Kinetiq built</h3>
+        <ul>
+          <li>Premium website redesign</li>
+          <li>AI chatbot that answers visitor questions</li>
+          <li>Contact form that emails enquiries to the owner</li>
+          <li>SEO foundations (sitemap, robots.txt, Search Console)</li>
+        </ul>
+      </div>
+    </div>
   </dialog>
   <div class="work-sweep" aria-hidden="true"><span class="sweep-head"></span></div>
 </body>
