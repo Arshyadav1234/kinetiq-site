@@ -6,6 +6,40 @@ const emailPattern = /^[^\s@<>,;:"()[\]\\]+@(?:[a-z0-9-]+\.)+[a-z0-9-]+$/i;
 const submissionPattern = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
 const maxBody = 16 * 1024;
 
+function escapeHtml(text) {
+  const entities = { '&':'&amp;', '<':'&lt;', '>':'&gt;' };
+  return text.replace(/[&<>]/g, character => entities[character]);
+}
+
+function inquiryEmail(name, email, labels, message) {
+  const projectTypes = labels.join(', ');
+  const subject = ['Kinetiq inquiry', projectTypes, name.replace(/\s+/g, ' ')].filter(Boolean).join(' — ');
+  const fields = [
+    ['Name', name],
+    ['Reply email', email],
+    ['Project type', projectTypes || 'No category selected']
+  ];
+  const replyHint = 'Reply to this email to reach the sender.';
+  const text = [
+    ...fields.map(([label, value]) => label + ': ' + value),
+    '', 'Project brief', message, '', replyHint
+  ].join('\n');
+  const html = `
+    <div style="max-width:600px;margin:auto;font-family:Arial,sans-serif;font-size:16px;line-height:1.5;color:#0A0A0B;background-color:#FFFFFF;border:1px solid #DADAD6">
+      <div style="padding:20px 24px;background-color:#0A0A0B;color:#F5F5F0;border-top:4px solid #C6FF3D">
+        <p style="margin:0;font-size:14px">Kinetiq</p>
+        <h1 style="margin:4px 0 0;font-size:24px;line-height:1.2">New project inquiry</h1>
+      </div>
+      <div style="padding:20px 24px;overflow-wrap:anywhere">
+        ${fields.map(([label, value]) => '<p style="margin:0 0 10px"><strong>' + label + '</strong><br>' + escapeHtml(value) + '</p>').join('')}
+        <h2 style="margin:20px 0 8px;padding-top:16px;border-top:1px solid #DADAD6;font-size:18px">Project brief</h2>
+        <p style="margin:0">${escapeHtml(message).replace(/\r\n?|\n/g, '<br>')}</p>
+        <p style="margin:20px 0 0;font-size:14px;color:#4A4A46">${replyHint}</p>
+      </div>
+    </div>`;
+  return { subject, text, html };
+}
+
 function json(data, status, headers = {}) {
   return Response.json(data, { status, headers:{ 'Cache-Control':'no-store', ...headers } });
 }
@@ -74,13 +108,7 @@ export default {
           from:sender,
           to:[recipient],
           reply_to:email,
-          subject:'New Kinetiq inquiry',
-          text:[
-            'Name: ' + name,
-            'Reply email: ' + email,
-            'Services: ' + (labels.join(', ') || 'Not specified'),
-            '', 'Project brief', message
-          ].join('\n')
+          ...inquiryEmail(name, email, labels, message)
         }),
         signal:AbortSignal.timeout(8000)
       });

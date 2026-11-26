@@ -29,7 +29,7 @@
   <link rel="icon" href="favicon.ico" sizes="32x32">
   <link rel="icon" href="images/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css?v=wheel-recovery">
-  <script src="app.js?v=wheel-recovery" defer></script>
+  <script src="app.js?v=inquiry-format" defer></script>
   <script>
     if (location.protocol === 'https:') {
       window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
@@ -360,7 +360,7 @@
         <form class="inquiry-editor" id="inquiry-form" action="/api/inquiry" method="post" aria-labelledby="inquiry-brief-title">
           <h3 id="inquiry-brief-title">Project brief</h3>
           <fieldset id="inquiry-services" tabindex="-1">
-            <legend>I need (optional)</legend>
+            <legend>What do you need? (optional)</legend>
             <div class="inquiry-chips">
               <button type="button" data-service="website" aria-pressed="false">Website</button>
               <button type="button" data-service="automation" aria-pressed="false">Automation</button>
@@ -371,10 +371,10 @@
             </div>
           </fieldset>
           <div class="inquiry-fields">
-            <label for="inquiry-name">Name
+            <label for="inquiry-name">Your name
               <input type="text" id="inquiry-name" name="name" autocomplete="name" maxlength="100" required>
             </label>
-            <label for="inquiry-reply-email">Reply email
+            <label for="inquiry-reply-email">Email address
               <input type="email" id="inquiry-reply-email" name="email" autocomplete="email" maxlength="254" required>
             </label>
           </div>
@@ -382,8 +382,8 @@
             <label for="inquiry-company-website">Company website</label>
             <input type="text" id="inquiry-company-website" name="companyWebsite" tabindex="-1" autocomplete="off">
           </div>
-          <label for="inquiry-message">Your project</label>
-          <textarea id="inquiry-message" name="message" rows="4" maxlength="3000" required placeholder="Tell us a little about your project." aria-describedby="inquiry-draft-help">Hi Kinetiq, I'd like to discuss a project. </textarea>
+          <label for="inquiry-message">Tell us about your project</label>
+          <textarea id="inquiry-message" name="message" rows="4" maxlength="3000" required placeholder="What do you want to build, and what should it do?"></textarea>
           <div class="inquiry-send">
             <div class="inquiry-actions">
               <button type="submit" id="inquiry-submit" class="cta-motion" disabled><span>Send inquiry</span><span class="cta-arrow" aria-hidden="true">↗</span></button>

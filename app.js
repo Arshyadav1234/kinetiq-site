@@ -3072,8 +3072,6 @@ function mountContact(section) {
   whatsapp.hidden = !number;
   email.hidden = !address;
   if (number || address) help.textContent = 'Send your draft directly, or copy it for another app.';
-  const starter = message.defaultValue;
-  let prefix = starter;
   let feedbackTimer;
   let copyPending = false;
   let submitting = false;
@@ -3117,30 +3115,9 @@ function mountContact(section) {
     }
   }
 
-  function updateMessage() {
-    const topics = selectedChips().map(chip => chip.dataset.service === 'other' ? 'a custom project' : chip.textContent.trim());
-    const next = topics.length
-      ? "Hi Kinetiq, I'm interested in: " + topics.join(', ') + '. About my project: '
-      : starter;
-    if (!message.value.trim()) {
-      message.value = next;
-    } else if (message.value.startsWith(prefix)) {
-      message.value = next + message.value.slice(prefix.length);
-    } else {
-      // Preserve a custom rewrite of the generated opening.
-      const marker = '. About my project: ';
-      const end = message.value.indexOf(marker);
-      if (message.value.startsWith("Hi Kinetiq, I'm interested in: ") && end !== -1) {
-        message.value = next + message.value.slice(end + marker.length);
-      }
-    }
-    prefix = next;
-    updateLinks();
-  }
-
   chips.forEach(chip => chip.addEventListener('click', () => {
     chip.setAttribute('aria-pressed', String(chip.getAttribute('aria-pressed') !== 'true'));
-    updateMessage();
+    clearSendFeedback();
   }));
   message.addEventListener('input', updateLinks);
   for (const field of [form.elements.name, form.elements.email]) {
@@ -3149,7 +3126,7 @@ function mountContact(section) {
   form.addEventListener('submit', async event => {
     event.preventDefault();
     if (submitting) return;
-    const details = (message.value.startsWith(prefix) ? message.value.slice(prefix.length) : message.value).trim();
+    const details = message.value.trim();
     if (!details) {
       message.setCustomValidity('Add a little detail about your project.');
       message.reportValidity();
@@ -3228,9 +3205,9 @@ function mountContact(section) {
       if (status.textContent) feedbackTimer = setTimeout(resetFeedback, 2000);
     }
   });
-  updateMessage();
+  updateLinks();
   return services => {
     chips.forEach(chip => chip.setAttribute('aria-pressed', String(services.includes(chip.dataset.service))));
-    updateMessage();
+    clearSendFeedback();
   };
 }
