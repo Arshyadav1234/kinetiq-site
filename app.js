@@ -3,8 +3,9 @@ const contactConfig = {
   email: ''
 };
 
-// Small screens, touch-first devices and reduced motion use the document's own scroll.
-const readingLayout = matchMedia('(max-width: 780px), (pointer: coarse), (prefers-reduced-motion: reduce)');
+// The pinned composition needs room for both the artwork and its controls.
+const compactViewport = '(max-width: 900px), (max-height: 560px), (pointer: coarse)';
+const readingLayout = matchMedia(`${compactViewport}, (prefers-reduced-motion: reduce)`);
 
 /* TechText canvas engine adapted from the React Bits source supplied by the user.
    React lifecycle replaced with DOM mounting; rendering, outlines and springs retained. */
@@ -1315,6 +1316,10 @@ mountHeadings();
   /* Work uses the same timeline for project navigation and the gallery reveal. */
   function mountWorkChapter(section, stage, destination, reduced, wake) {
     const portfolio = document.getElementById('selected-work');
+    const heading = portfolio.querySelector('.portfolio-heading');
+    new ResizeObserver(() => {
+      if (readingLayout.matches) portfolio.style.setProperty('--work-heading-height', heading.offsetHeight + 'px');
+    }).observe(heading);
     const anchor = document.createComment('Page 3 position inside the sticky stage');
     portfolio.before(anchor);
     const scenes = [...portfolio.querySelectorAll('.work-scene')];
@@ -1348,10 +1353,12 @@ mountHeadings();
     const timeline = { hold: .45, sweepEnd: 1.35, firstEnd: 2.3, secondStart: 2.95, secondEnd: 3.8, thirdStart: 4.45 };
 
     const studio = document.querySelector('.studio-sculpture');
+    const browserPreview = portfolio.querySelector('.showcase-window');
     const mobileReveals = [
       surface,
       destination.querySelector('.capability-heading'),
-      ...portfolio.querySelectorAll('.showcase-window, .brief-desk, .film-screen')
+      browserPreview,
+      ...portfolio.querySelectorAll('.brief-desk, .film-screen')
     ];
     let revealObserver;
     let lastStudioTurn = -1;
@@ -1362,8 +1369,16 @@ mountHeadings();
       studio.style.removeProperty('--turn');
       lastStudioTurn = -1;
       if (!readingLayout.matches || reduced.matches) return;
-      revealObserver = new IntersectionObserver(entries => {
+      revealObserver = new IntersectionObserver((entries, observer) => {
         for (const entry of entries) {
+          if (entry.target === browserPreview) {
+            if (entry.isIntersecting && entry.intersectionRatio >= .12) {
+              // The unfold changes the preview's own bounds. Stop watching before it moves.
+              observer.unobserve(browserPreview);
+              browserPreview.classList.add('entered-view');
+            }
+            continue;
+          }
           if (!entry.isIntersecting || (entry.target === surface && entry.intersectionRatio < .12)) {
             entry.target.classList.remove('entered-view');
           } else if (entry.intersectionRatio >= .12) entry.target.classList.add('entered-view');
@@ -1408,7 +1423,7 @@ mountHeadings();
       if (!video.hasAttribute('src')) {
         video.preload = readingLayout.matches ? 'none' : 'metadata';
         video.poster = poster.currentSrc || poster.src;
-        video.src = matchMedia('(max-width: 780px), (pointer: coarse)').matches
+        video.src = matchMedia(compactViewport).matches
           ? video.dataset.mobileSrc : video.dataset.src;
         video.hidden = false;
       }
@@ -1452,7 +1467,7 @@ mountHeadings();
         const onScreen = top < viewport && bottom > 0;
         let visible = false;
         if (onScreen) {
-          const eye = viewport * .5;
+          const eye = Math.min(viewport * .5, Math.max(header.offsetHeight, heading.getBoundingClientRect().bottom) + 24);
           const current = scenes.findIndex(scene => scene.getBoundingClientRect().bottom >= eye);
           active = current < 0 ? scenes.length - 1 : current;
           const film = filmSlot.getBoundingClientRect();
@@ -1996,6 +2011,7 @@ mountHeadings();
         focusAfter = transition.focus;
         progress = stops[currentStop];
         transition = null;
+        wheelResumeAt = now + 120;
         cancelFaqExit();
         clearFold();
         if (reveal) revealFaq();
@@ -2009,28 +2025,22 @@ mountHeadings();
   }
   function schedule() { if (!frame) frame = requestAnimationFrame(animate); }
 
-  // Treat a burst of wheel input as one gesture, including its momentum tail.
+  // Accumulate small wheel ticks, then let the current chapter settle before accepting more.
   let lastWheel = -Infinity;
-  let burstStart = 0, wheelDistance = 0, wheelDirection = 0, wheelUsed = false;
+  let wheelDistance = 0, wheelDirection = 0, wheelResumeAt = 0;
   function collectWheel(delta, now, nativeOnly = false) {
     const direction = Math.sign(delta);
     if (!direction) return;
-    if (now - lastWheel > 170 || direction !== wheelDirection) {
-      burstStart = now;
-      wheelDistance = 0;
-      wheelUsed = false;
-    }
+    if (now - lastWheel > 170 || direction !== wheelDirection) wheelDistance = 0;
     lastWheel = now;
     wheelDirection = direction;
-    if (transition || faqExit || nativeOnly) wheelUsed = true;
-    if (wheelUsed) return;
-    if (now - burstStart > 180) {
+    if (transition || faqExit || nativeOnly || now < wheelResumeAt) {
       wheelDistance = 0;
-      burstStart = now;
+      return;
     }
     wheelDistance += Math.abs(delta);
     if (Math.abs(delta) >= 72 || wheelDistance >= 104) {
-      wheelUsed = true;
+      wheelDistance = 0;
       goToStop(currentStop + direction);
     }
   }
@@ -2060,10 +2070,18 @@ mountHeadings();
     collectWheel(delta, performance.now(), nested);
   }
 
+  function onReadingWheel(event) {
+    if (root.classList.contains('reading-wheel') || event.ctrlKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+    root.classList.add('reading-wheel');
+  }
   let touch = null;
   window.addEventListener('touchstart', event => {
     touch = null;
-    if (readingLayout.matches || dialogOpen() || event.touches.length !== 1 || event.target.closest('input, textarea, video, .work-directory')) return;
+    if (readingLayout.matches) {
+      root.classList.remove('reading-wheel');
+      return;
+    }
+    if (dialogOpen() || event.touches.length !== 1 || event.target.closest('input, textarea, video, .work-directory')) return;
     const point = event.touches[0];
     touch = { x:point.clientX, y:point.clientY, start:performance.now(), used:false, nested:false };
   }, { passive:true });
@@ -2085,9 +2103,13 @@ mountHeadings();
   }
   function syncGestureListeners() {
     window.removeEventListener('wheel', onWheel);
+    window.removeEventListener('wheel', onReadingWheel);
     window.removeEventListener('touchmove', onTouchMove);
     touch = null;
-    if (!readingLayout.matches) {
+    if (readingLayout.matches) {
+      window.addEventListener('wheel', onReadingWheel, { passive:true });
+    } else {
+      root.classList.remove('reading-wheel');
       window.addEventListener('wheel', onWheel, { passive:false });
       window.addEventListener('touchmove', onTouchMove, { passive:false });
     }
@@ -2259,7 +2281,6 @@ function mountFooterGate(footer, reduced, enterContact) {
   let lastWheel = -Infinity;
   let wheelDirection = 0;
   let wheelDistance = null;
-  let wheelLatched = false;
   let touchStart;
   let settleFrame = 0;
   let settleGoal;
@@ -2336,19 +2357,11 @@ function mountFooterGate(footer, reduced, enterContact) {
         if (fresh || wheelDistance === null) wheelDistance = 0;
         wheelDirection = direction;
         wheelDistance += distance;
-        if (wheelDistance >= 32) {
-          wheelLatched = true;
-          requestFooter(direction > 0);
-        }
+        if (wheelDistance >= 32) requestFooter(direction > 0);
       }
       return;
     }
-    if (wheelLatched && !fresh) {
-      if (event.cancelable) event.preventDefault();
-      return;
-    }
     wheelDirection = direction;
-    wheelLatched = false;
     const pane = event.target.closest('textarea');
     const nested = pane && (direction > 0 ? pane.scrollTop + pane.clientHeight < pane.scrollHeight - 1 : pane.scrollTop > 0);
     if (direction !== gestureDirection() || nested) {
@@ -2360,7 +2373,6 @@ function mountFooterGate(footer, reduced, enterContact) {
     if (event.cancelable) event.preventDefault();
     wheelDistance += distance;
     if (wheelDistance < 32) return;
-    wheelLatched = true;
     requestFooter(direction > 0);
   }, { capture:true, passive:false });
 
