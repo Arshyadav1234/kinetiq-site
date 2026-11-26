@@ -4,6 +4,7 @@ const services = new Map([
 ]);
 const emailPattern = /^[^\s@<>,;:"()[\]\\]+@(?:[a-z0-9-]+\.)+[a-z0-9-]+$/i;
 const submissionPattern = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+const sheetWebhookPattern = /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/;
 const maxBody = 16 * 1024;
 
 function escapeHtml(text) {
@@ -42,6 +43,40 @@ function inquiryEmail(name, email, labels, message) {
 
 function json(data, status, headers = {}) {
   return Response.json(data, { status, headers:{ 'Cache-Control':'no-store', ...headers } });
+}
+
+async function notifyByEmail(apiKey, recipient, sender, lead) {
+  const { name, email, labels, message, submissionId } = lead;
+  const delivery = await fetch('https://api.resend.com/emails', {
+    method:'POST',
+    headers:{
+      Authorization:'Bearer ' + apiKey,
+      'Content-Type':'application/json',
+      'Idempotency-Key':'kinetiq-inquiry/' + submissionId
+    },
+    body:JSON.stringify({
+      from:sender,
+      to:[recipient],
+      reply_to:email,
+      ...inquiryEmail(name, email, labels, message)
+    }),
+    signal:AbortSignal.timeout(8000)
+  });
+  if (!delivery.ok || !(await delivery.json())?.id) {
+    throw new Error('Resend delivery response ' + delivery.status);
+  }
+}
+
+async function saveToSheet(url, secret, lead) {
+  const delivery = await fetch(url, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json' },
+    body:JSON.stringify({ ...lead, secret }),
+    signal:AbortSignal.timeout(10000)
+  });
+  if (!delivery.ok || (await delivery.json())?.ok !== true) {
+    throw new Error('Google Sheets did not confirm the write.');
+  }
 }
 
 export default {
@@ -95,29 +130,22 @@ export default {
     if (!apiKey || !recipient) {
       return json({ error:'The form is not connected yet. You can still reach us on Instagram or Telegram.' }, 503);
     }
-    const labels = [...new Set(input.services)].map(service => services.get(service));
-    try {
-      const delivery = await fetch('https://api.resend.com/emails', {
-        method:'POST',
-        headers:{
-          Authorization:'Bearer ' + apiKey,
-          'Content-Type':'application/json',
-          'Idempotency-Key':'kinetiq-inquiry/' + input.submissionId
-        },
-        body:JSON.stringify({
-          from:sender,
-          to:[recipient],
-          reply_to:email,
-          ...inquiryEmail(name, email, labels, message)
-        }),
-        signal:AbortSignal.timeout(8000)
-      });
-      const receipt = delivery.ok ? await delivery.json() : null;
-      if (receipt?.id) return json({ ok:true }, 200);
-      console.error('Inquiry delivery returned status', delivery.status);
-    } catch (error) {
-      console.error('Inquiry delivery failed', error.name);
+    const sheetUrl = process.env.LEADS_WEBHOOK_URL?.trim();
+    const sheetSecret = process.env.LEADS_WEBHOOK_SECRET?.trim();
+    if (Boolean(sheetUrl || sheetSecret) && (!sheetWebhookPattern.test(sheetUrl) || !/^[a-f0-9]{64}$/i.test(sheetSecret))) {
+      console.error('Google Sheets inquiry configuration is incomplete.');
+      return json({ error:'The form is not connected yet. You can still reach us on Instagram or Telegram.' }, 503);
     }
+    const lead = {
+      name, email, message, submissionId:input.submissionId,
+      labels:[...new Set(input.services)].map(service => services.get(service))
+    };
+    const deliveries = [notifyByEmail(apiKey, recipient, sender, lead)];
+    if (sheetUrl) deliveries.push(saveToSheet(sheetUrl, sheetSecret, lead));
+    const [mailResult, sheetResult] = await Promise.allSettled(deliveries);
+    if (mailResult.status === 'rejected') console.error('Inquiry email delivery failed.');
+    if (sheetResult?.status === 'rejected') console.error('Google Sheets lead write failed.');
+    if (mailResult.status === 'fulfilled' && sheetResult?.status !== 'rejected') return json({ ok:true }, 200);
     return json({ error:'We couldn’t confirm delivery. Try again or message us directly.' }, 502);
   }
 };
