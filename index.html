@@ -28,8 +28,8 @@
     rel="stylesheet" media="print" onload="this.media='all'">
   <link rel="icon" href="favicon.ico" sizes="32x32">
   <link rel="icon" href="images/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=mobile-faq">
-  <script src="app.js?v=mobile-faq" defer></script>
+  <link rel="stylesheet" href="styles.css?v=interaction-feedback">
+  <script src="app.js?v=interaction-feedback" defer></script>
   <script>
     if (location.protocol === 'https:') {
       window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
@@ -43,6 +43,18 @@
 <body>
   <header class="nav">
     <a class="brand" href="#home" aria-label="Kinetiq home"><span class="mark"></span><span class="word"></span></a>
+    <nav class="nav-shortcuts" aria-label="Main navigation">
+      <button type="button" class="nav-menu-toggle" aria-label="Section menu" aria-expanded="false" aria-controls="nav-shortcut-links">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+          <path d="M5 8h14M5 12h14M5 16h14" />
+        </svg>
+      </button>
+      <div class="nav-shortcut-links" id="nav-shortcut-links">
+        <a href="#work" data-chapter-link>Services</a>
+        <a href="#selected-work" data-chapter-link>Work</a>
+        <a href="#faq" data-chapter-link>FAQ</a>
+      </div>
+    </nav>
     <div class="nav-right">
       <button id="theme" class="theme" type="button" role="switch" aria-checked="true" aria-label="Dark mode">
         <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
@@ -57,7 +69,7 @@
           </svg></span>
         <i aria-hidden="true"></i>
       </button>
-      <a class="contact" href="#contact">Let’s talk <span>↗</span></a>
+      <a class="contact cta-motion" href="#contact">Let’s talk <span class="cta-arrow" aria-hidden="true">↗</span></a>
     </div>
   </header>
   <main id="home">
@@ -79,8 +91,8 @@
                 to life with motion.</p>
               <div class="actions">
                 <div class="border-glow-card"><span class="edge-light" aria-hidden="true"></span><a
-                    class="primary border-glow-inner" href="#contact">Let’s build yours
-                    <span>↗</span></a></div><button class="explore" id="explore">See what we build <span>↓</span></button>
+                    class="primary border-glow-inner cta-motion" href="#contact">Let’s build yours
+                    <span class="cta-arrow" aria-hidden="true">↗</span></a></div><button class="explore" id="explore">See what we build <span>↓</span></button>
               </div>
             </div>
             <div class="mobile-studio" aria-hidden="true">
@@ -303,8 +315,8 @@
             </div>
           </div>
           <div class="capability-footer">
-            <p>One project. Or the pieces working together.</p><a href="#contact" data-service-contact>Tell us what
-              you’re building <span aria-hidden="true">↗</span></a>
+            <p>One project. Or the pieces working together.</p><a class="cta-motion" href="#contact" data-service-contact>Tell us what
+              you’re building <span class="cta-arrow" aria-hidden="true">↗</span></a>
           </div>
         </section>
       </div>
@@ -313,7 +325,7 @@
       <div class="faq-inner">
         <div class="faq-intro">
           <h2 id="faq-title">Questions,<br> <span>answered.</span></h2>
-          <a class="faq-contact" href="#contact">Ask us a question <span aria-hidden="true">↗</span></a>
+          <a class="faq-contact cta-motion" href="#contact">Ask us a question <span class="cta-arrow" aria-hidden="true">↗</span></a>
         </div>
         <div class="faq-list">
           <details class="capability faq-row" name="kinetiq-faq" open>
@@ -374,7 +386,7 @@
           <textarea id="inquiry-message" name="message" rows="4" maxlength="3000" required placeholder="Tell us a little about your project." aria-describedby="inquiry-draft-help">Hi Kinetiq, I'd like to discuss a project. </textarea>
           <div class="inquiry-send">
             <div class="inquiry-actions">
-              <button type="submit" id="inquiry-submit" disabled><span>Send inquiry</span><span aria-hidden="true">↗</span></button>
+              <button type="submit" id="inquiry-submit" class="cta-motion" disabled><span>Send inquiry</span><span class="cta-arrow" aria-hidden="true">↗</span></button>
               <button type="button" id="inquiry-copy"><span class="copy-label">Copy message</span><span class="copy-symbol" aria-hidden="true">⧉</span></button>
               <a id="inquiry-whatsapp" target="_blank" rel="noopener noreferrer" hidden>WhatsApp</a>
               <a id="inquiry-email" hidden>Email</a>
@@ -421,19 +433,19 @@
         <div class="footer-content">
           <h2 id="footer-title">Ready to begin?</h2>
           <div class="footer-actions">
-            <a class="footer-pill" href="#contact"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>Start a project</a>
-            <a class="footer-pill" href="#selected-work" data-footer-chapter><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 9h16"/></svg>See our work</a>
+            <a class="footer-pill cta-motion" href="#contact"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>Start a project</a>
+            <a class="footer-pill cta-motion" href="#selected-work" data-chapter-link><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 9h16"/></svg>See our work</a>
           </div>
         </div>
         <div class="footer-bottom">
           <div class="footer-credit"><span class="mark" aria-hidden="true"></span><small>© 2026 Kinetiq</small></div>
           <nav class="footer-links" aria-label="Footer links">
-            <a href="#work" data-footer-chapter>Services</a>
-            <a href="#faq" data-footer-chapter>FAQ</a>
+            <a href="#work" data-chapter-link>Services</a>
+            <a href="#faq" data-chapter-link>FAQ</a>
             <a href="https://instagram.com/kinetiq.systems" target="_blank" rel="noopener noreferrer">Instagram <span aria-hidden="true">↗</span></a>
             <a href="https://t.me/kinetiqsystems" target="_blank" rel="noopener noreferrer">Telegram <span aria-hidden="true">↗</span></a>
           </nav>
-          <a class="footer-pill footer-top" href="#home" data-footer-chapter>Back to top <span aria-hidden="true">↑</span></a>
+          <a class="footer-pill footer-top" href="#home" data-chapter-link>Back to top <span aria-hidden="true">↑</span></a>
         </div>
       </div>
     </div>

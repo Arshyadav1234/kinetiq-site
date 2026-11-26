@@ -256,6 +256,39 @@ html[data-theme="dark"].work-active .theme span:last-of-type{color:#151810}
 .nav{background:var(--home-bg);transition:background-color .25s,color .25s}
 html.work-active .nav{background:var(--work-bg)}
 
+.nav-shortcuts { position:absolute; inset-inline-start:50%; transform:translateX(-50%); }
+.nav-menu-toggle { display:none; }
+.nav-shortcut-links { display:flex; align-items:center; gap:clamp(12px,2.2vw,32px); }
+.nav-shortcut-links a { display:inline-flex; align-items:center; min-height:44px; padding-inline:5px; font-size:14px; font-weight:500; }
+.nav-shortcut-links a:is(:hover,[aria-current="location"]) { text-decoration:underline; text-underline-offset:6px; }
+.nav-shortcuts :focus-visible { outline-color:currentColor; outline-offset:3px; }
+html.work-sweeping .nav-shortcuts { color:var(--work-ink); }
+html.work-sweeping.portfolio-active .nav-shortcuts { color:var(--ink); }
+@media (max-width:700px) {
+  .nav:has(.nav-shortcuts) { gap:8px; padding-inline:4%; }
+  .nav:has(.nav-shortcuts) .nav-right { gap:10px; }
+  .nav-shortcuts { position:static; transform:none; margin-inline-start:auto; }
+  .nav-menu-toggle {
+    display:grid; place-items:center; padding:0; width:44px; height:44px;
+    border:1px solid var(--line); border-radius:8px;
+  }
+  .nav-menu-toggle svg { display:block; width:21px; height:21px; }
+  .nav-menu-toggle[aria-expanded="true"] { border-color:currentColor; }
+  .nav-shortcut-links {
+    position:absolute; inset:100% 4% auto auto; display:none; width:min(92%,260px); gap:0;
+    padding:6px 12px; border:1px solid var(--line); border-radius:10px;
+    background:var(--home-bg); box-shadow:0 14px 30px #0002;
+  }
+  html.work-active .nav-shortcut-links { background:var(--work-bg); }
+  html.portfolio-active .nav-shortcut-links { background:var(--gallery-color); }
+  .nav-menu-toggle[aria-expanded="true"] + .nav-shortcut-links { display:grid; }
+  .nav-shortcut-links a + a { border-block-start:1px solid var(--line); }
+}
+@media (max-width:360px) {
+  .nav:has(.nav-shortcuts) { gap:6px; }
+  .nav:has(.nav-shortcuts) .contact span { display:none; }
+}
+
 /* LightTunnel is the home background; its center stays clear behind the copy. */
 .light-tunnel-container{position:absolute;inset:0;z-index:0;overflow:clip;pointer-events:none;background:radial-gradient(ellipse at 50% 55%,transparent 35%,#9cad7c05)}
 html[data-theme="dark"] .light-tunnel-container {
@@ -1343,7 +1376,9 @@ html[data-theme="dark"] {
 .footer-links a:is(:hover,:focus-visible) { text-decoration:underline; text-underline-offset:.24em; }
 .footer-top { justify-self:end; min-height:44px; padding:7px 14px; font-weight:600; }
 .site-footer a:focus-visible { outline-color:var(--ink); outline-offset:3px; }
-@media (hover:hover) { .footer-pill:hover { transform:translateY(-3px); } }
+@media (hover:hover) and (prefers-reduced-motion:no-preference) {
+  .footer-pill:not(.cta-motion):hover { transform:translateY(-3px); }
+}
 @media (prefers-reduced-motion:no-preference) {
   html.reading-layout:not(.footer-waiting) { scroll-snap-type:none; }
   .footer-ribbon-track { animation:footer-marquee 44s linear infinite paused; }
@@ -1368,4 +1403,60 @@ html[data-theme="dark"] {
   .footer-actions svg { width:16px; height:16px; }
   .footer-links { gap:3px; }
   .footer-links a { gap:3px; padding-inline:6px; }
+}
+
+/* Keep feedback inside the control so it follows the existing chapter transitions. */
+.cta-motion,.border-glow-inner.cta-motion { position:relative; isolation:isolate; overflow:clip; }
+.cta-motion:focus-visible { outline-offset:4px; }
+.cta-motion:active:not(:disabled) { box-shadow:inset 0 0 0 1px currentColor; }
+
+@media (hover:hover) and (pointer:fine) {
+  .nav-shortcut-links a:hover { text-decoration-thickness:2px; }
+  .capability :is(.service-trigger,summary):hover,
+  .inquiry-social a:hover,
+  .footer-links a:hover,
+  .work-controls button:not(:disabled):hover,
+  .film-shots button:not(:disabled,[aria-current="true"]):hover {
+    background-color:color-mix(in srgb,currentColor 8%,transparent);
+  }
+  .comparison-key button[aria-pressed="false"]:hover,
+  .inquiry-chips button[aria-pressed="false"]:hover,
+  #inquiry-copy:not(:disabled):hover {
+    border-color:currentColor;
+    background-color:color-mix(in srgb,currentColor 10%,transparent);
+  }
+  .study-links :is(a,button):hover { text-decoration:underline; text-underline-offset:4px; }
+  .service-preview:hover { border-color:currentColor; }
+}
+
+@media (prefers-reduced-motion:no-preference) {
+  .cta-motion { transition:translate 180ms ease-out,scale 150ms ease-out; }
+  .cta-motion:active:not(:disabled) { scale:.95; transition-duration:90ms; }
+  .cta-motion .cta-arrow,.footer-actions .cta-motion svg { transition:transform 180ms ease-out; }
+  .cta-motion::after {
+    content:''; position:absolute; inset:0; z-index:1; pointer-events:none;
+    background:linear-gradient(110deg,transparent 35%,#fff6 50%,transparent 65%);
+    translate:-120% 0; opacity:0;
+  }
+  .cta-pulse {
+    position:absolute; z-index:2; pointer-events:none; aspect-ratio:1; border-radius:50%;
+    background:radial-gradient(circle,color-mix(in srgb,var(--lime) 52%,transparent),transparent 68%);
+    border:1px solid color-mix(in srgb,var(--lime) 65%,transparent);
+    animation:cta-pulse 420ms cubic-bezier(.23,1,.32,1) both;
+  }
+  #inquiry-submit .cta-pulse { background:radial-gradient(circle,#ffffff9e,transparent 68%); border-color:#0a0a0b50; }
+  @keyframes cta-pulse {
+    from { opacity:.85; transform:translate(-50%,-50%) scale(.12); }
+    to { opacity:0; transform:translate(-50%,-50%) scale(1.08); }
+  }
+
+  @media (hover:hover) and (pointer:fine) {
+    .cta-motion:hover:not(:active,:disabled) { translate:0 -2px; }
+    .cta-motion:hover:not(:disabled)::after { translate:120% 0; opacity:1; transition:translate 450ms ease-out; }
+    .cta-motion:hover:not(:disabled) .cta-arrow { transform:translate(3px,-2px); }
+    .footer-actions .cta-motion:hover svg { transform:translateY(-2px); }
+    .service-preview img,.compare-grip { transition:scale 200ms ease-out; }
+    .service-preview:hover img { scale:1.04; }
+    .comparison:has(#compare-sites:hover) .compare-grip { scale:1.1; }
+  }
 }

@@ -1778,6 +1778,21 @@ mountHeadings();
     ['#home', 0], ['#work', 1], ['#selected-work', 2], ['#dreamshowz-title', 2],
     ['#research-title', 3], ['#motion-title', 4], ['#faq', 5], ['#contact', 6]
   ]);
+  const shortcutNav = document.querySelector('.nav-shortcuts');
+  const shortcuts = [...shortcutNav.querySelectorAll('[data-chapter-link]')];
+  const menuToggle = shortcutNav.querySelector('.nav-menu-toggle');
+  let activeShortcut = null;
+
+  function syncShortcutChapter(chapter) {
+    const target = chapter === 1 ? '#work' : chapter === faqStop ? '#faq' :
+      chapter >= 2 && chapter < faqStop ? '#selected-work' : null;
+    if (target === activeShortcut) return;
+    activeShortcut = target;
+    for (const link of shortcuts) {
+      if (link.hash === target) link.setAttribute('aria-current', 'location');
+      else link.removeAttribute('aria-current');
+    }
+  }
   let serviceHeight = 0;
   let stageHeight = 0;
   let maxProgress = 1;
@@ -1858,6 +1873,7 @@ mountHeadings();
       }
       readingChapter = chapter;
     }
+    syncShortcutChapter(readingLayout.matches ? readingChapter : currentStop);
   }
   function stopY(index = currentStop) {
     if (index >= faqStop) return Math.round(chapters[index].getBoundingClientRect().top + scrollY);
@@ -2192,12 +2208,29 @@ mountHeadings();
   mountFooterGate(footer, reduced, () => {
     if (!readingLayout.matches && !isFooterStop()) goToStop(contactStop, true);
   });
-  for (const link of footer.querySelectorAll('[data-footer-chapter]')) {
+  const menuIsOpen = () => menuToggle.getAttribute('aria-expanded') === 'true';
+  const setMenuOpen = open => menuToggle.setAttribute('aria-expanded', String(open));
+  menuToggle.addEventListener('click', () => setMenuOpen(!menuIsOpen()));
+  matchMedia('(max-width:700px)').addEventListener('change', () => setMenuOpen(false));
+  document.addEventListener('pointerdown', event => {
+    if (menuIsOpen() && !shortcutNav.contains(event.target)) setMenuOpen(false);
+  });
+  shortcutNav.addEventListener('focusout', event => {
+    if (menuIsOpen() && event.relatedTarget && !shortcutNav.contains(event.relatedTarget)) setMenuOpen(false);
+  });
+  shortcutNav.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || !menuIsOpen()) return;
+    event.preventDefault();
+    setMenuOpen(false);
+    menuToggle.focus();
+  });
+  for (const link of document.querySelectorAll('[data-chapter-link]')) {
     link.addEventListener('click', event => {
       if (modifiedClick(event)) return;
       const chapter = chapterHashes.get(link.hash);
       if (chapter === undefined) return;
       event.preventDefault();
+      if (menuIsOpen()) setMenuOpen(false);
       if (chapter === 0) {
         goToStop(0);
         homeLink.focus({ preventScroll:true });
@@ -2398,6 +2431,26 @@ function mountFooterGate(footer, reduced, enterContact) {
   });
 }
 
+
+(() => {
+  const motion = matchMedia('(prefers-reduced-motion: no-preference)');
+  document.addEventListener('click', event => {
+    const control = event.target.closest('.cta-motion');
+    if (!motion.matches || !control || control.matches(':disabled,[aria-disabled="true"]')) return;
+    const bounds = control.getBoundingClientRect();
+    const x = event.detail ? Math.max(0, Math.min(bounds.width, event.clientX - bounds.left)) : bounds.width / 2;
+    const y = event.detail ? Math.max(0, Math.min(bounds.height, event.clientY - bounds.top)) : bounds.height / 2;
+    const diameter = 2 * Math.hypot(Math.max(x, bounds.width - x), Math.max(y, bounds.height - y));
+    control.querySelector('.cta-pulse')?.remove();
+    const pulse = document.createElement('i');
+    pulse.className = 'cta-pulse';
+    pulse.setAttribute('aria-hidden', 'true');
+    Object.assign(pulse.style, { left:`${x}px`, top:`${y}px`, width:`${diameter}px` });
+    pulse.addEventListener('animationend', () => pulse.remove(), { once:true });
+    pulse.addEventListener('animationcancel', () => pulse.remove(), { once:true });
+    control.append(pulse);
+  }, { capture:true, passive:true });
+})();
 
 /* BorderGlow DOM adapter: supplied edge-proximity/angle math, brand-only palette. */
 (() => {
